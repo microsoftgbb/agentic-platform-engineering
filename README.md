@@ -113,6 +113,9 @@ This repository is organized to support different presentation needs and learnin
 
 _(Coming soon)_
 
+## Resources
+- [Tech Connect Feb 2026 Slide Deck](https://microsoft-my.sharepoint.com/:p:/p/dicasati/IQB90yD2k9IZTpqIYAnsIVzZAfA3kgaCG4xPrwGMmbFJflY?e=6NiPsY&wdOrigin=TEAMS-MAGLEV.null_ns.rwc&wdExp=TEAMS-TREATMENT&wdhostclicktime=1769453007818&web=1)
+
 ## Contributing
 
 _(Coming soon)_
