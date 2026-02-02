@@ -1,0 +1,52 @@
+name: Generate Documentation with Copilot
+
+# Modified from @sitoader's workflow at: https://github.com/sitoader/AgenticWorkflows/blob/main/.github/workflows/generate-docs.yml
+
+on:
+  workflow_dispatch:
+  push:
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read    # Required to read repository content and commit diffs
+      issues: write     # Required to create GitHub issues for documentation recommendations
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Install GitHub Copilot CLI
+        run: |
+          curl -fsSL https://gh.io/copilot-install | bash
+          echo "Installed Copilot CLI version:"
+          copilot --version
+                    
+      - name: Analyze and delegate to Copilot
+        env:
+          GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_TOKEN }}        # Workflow token for MCP GitHub operations (issues)
+          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}       # Personal PAT for Copilot API authentication
+        run: |
+          echo "Analyzing commit ${{ github.sha }}"
+          echo "Loading documentation criteria from prompt..."
+          
+          PROMPT=$(cat .github/prompts/analyze-for-docs.prompt.md)
+          PROMPT="${PROMPT//\{COMMIT_SHA\}/${{ github.sha }}}"
+          PROMPT="${PROMPT//\{REPOSITORY\}/${{ github.repository }}}"
+          
+          echo "Delegating to GitHub Copilot..."
+          echo "- Copilot will use MCP to examine the commit"
+          echo "- Copilot will decide if documentation is needed"
+          echo "- Copilot will create an issue and assign it to itself if needed"
+          echo ""
+
+          copilot -p "$PROMPT" \
+            --allow-all-tools
+
+      # Todo: Add the step to commit generated docs back to the repo if desired
