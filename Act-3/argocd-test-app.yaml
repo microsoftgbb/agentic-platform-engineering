@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: aks-store-test
+  namespace: argocd
+  annotations:
+    # Enable notifications on sync failures
+    notifications.argoproj.io/subscribe.on-sync-failed.github-webhook: ""
+    notifications.argoproj.io/subscribe.on-health-degraded.github-webhook: ""
+spec:
+  project: default
+  source:
+    # Using a public example repo that will fail
+    repoURL: https://github.com/Azure-Samples/aks-store-demo.git
+    targetRevision: main
+    path: invalid-path-to-trigger-error
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
