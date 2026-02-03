@@ -1,7 +1,5 @@
 name: "Copilot - Azure Login"
 
-# Automatically run the setup steps when they are changed to allow for easy validation, and
-# allow manual testing through the repository's "Actions" tab
 on:
   workflow_dispatch:
 
@@ -17,34 +15,27 @@ env:
   ARM_USE_OIDC: true
 
 jobs:
-  # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
   copilot-setup-steps:
     runs-on: ubuntu-latest
     environment: demo
 
-    # Set the permissions to the lowest permissions possible needed for your steps.
-    # Copilot will be given its own token for its operations.
+    # Job-level permissions override workflow-level, so you must include id-token here
     permissions:
-      # If you want to clone the repository as part of your setup steps, for example to install dependencies, you'll need the `contents: read` permission. If you don't clone the repository in your setup steps, Copilot will do this for you automatically after the steps complete.
       contents: write
+      id-token: write  # Required for Azure federated identity
 
-    # You can define any steps you want, and they will run before the agent starts.
-    # If you do not check out your code, Copilot will do this for you.
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      # Setup Azure Federated Identity Credentials
       - name: Azure CLI Login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.ARM_CLIENT_ID }}
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-      - name: 'Validate Workload Identity Auth Works'
-        uses:  azure/login@v2
-        with:
-          azcliversion: latest
-          inlineScript: |
-            az account show
-            az group list
+      
+      - name: Validate Workload Identity Auth Works
+        run: |
+          az account show
+          az group list
