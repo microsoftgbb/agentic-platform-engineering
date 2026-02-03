@@ -13,6 +13,11 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      - name: Install kubectl and get cluster info
+        run: |
+          # kubectl should already be available in ubuntu-latest
+          kubectl version --client
+          
       - name: Create GitHub Issue
         uses: actions/github-script@v7
         with:
@@ -28,11 +33,105 @@ jobs:
             const repoUrl = payload.repo_url || '';
             const targetRevision = payload.target_revision || '';
             const timestamp = payload.timestamp || new Date().toISOString();
+            const degradedResources = payload.degraded_resources || [];
             
-            // Extract cluster name from URL (e.g., https://kubernetes.default.svc -> "in-cluster")
+            // Get actual cluster name using kubectl
+            const { execSync } = require('child_process');
             let clusterName = 'in-cluster';
-            if (clusterUrl && clusterUrl !== 'unknown' && !clusterUrl.includes('kubernetes.default.svc')) {
-              clusterName = clusterUrl.replace(/^https?:\/\//, '').split(':')[0];
+            let clusterContext = 'unknown';
+            let degradedDetails = '';
+            
+            try {
+              // Get actual cluster context name
+              clusterContext = execSync('kubectl config current-context', { encoding: 'utf-8' }).trim();
+              
+              // Get cluster info
+              const clusterInfo = execSync('kubectl cluster-info', { encoding: 'utf-8' }).trim();
+              const clusterMatch = clusterInfo.match(/Kubernetes control plane is running at (.+)/);
+              if (clusterMatch) {
+                clusterName = clusterMatch[1];
+              }
+              
+              // Get degraded pods in the namespace
+              try {
+                const pods = execSync(`kubectl get pods -n ${namespace} --field-selector=status.phase!=Running,status.phase!=Succeeded -o json`, { encoding: 'utf-8' });
+                const podsData = JSON.parse(pods);
+                
+                if (podsData.items && podsData.items.length > 0) {
+                  degradedDetails = '\n### 🔴 Degraded Resources\n\n';
+                  degradedDetails += '#### Pods with Issues\n\n';
+                  
+                  for (const pod of podsData.items) {
+                    const podName = pod.metadata.name;
+                    const podPhase = pod.status.phase;
+                    const containerStatuses = pod.status.containerStatuses || [];
+                    
+                    degradedDetails += `**Pod:** \`${podName}\`\n`;
+                    degradedDetails += `- **Status:** ${podPhase}\n`;
+                    
+                    // Check container statuses
+                    for (const container of containerStatuses) {
+                      if (!container.ready) {
+                        degradedDetails += `- **Container:** \`${container.name}\`\n`;
+                        degradedDetails += `  - Ready: ${container.ready}\n`;
+                        degradedDetails += `  - Restart Count: ${container.restartCount}\n`;
+                        
+                        if (container.state.waiting) {
+                          degradedDetails += `  - State: Waiting\n`;
+                          degradedDetails += `  - Reason: ${container.state.waiting.reason}\n`;
+                          degradedDetails += `  - Message: ${container.state.waiting.message || 'N/A'}\n`;
+                        } else if (container.state.terminated) {
+                          degradedDetails += `  - State: Terminated\n`;
+                          degradedDetails += `  - Reason: ${container.state.terminated.reason}\n`;
+                          degradedDetails += `  - Exit Code: ${container.state.terminated.exitCode}\n`;
+                          degradedDetails += `  - Message: ${container.state.terminated.message || 'N/A'}\n`;
+                        }
+                      }
+                    }
+                    degradedDetails += '\n';
+                  }
+                }
+                
+                // Get failed deployments
+                const deployments = execSync(`kubectl get deployments -n ${namespace} -o json`, { encoding: 'utf-8' });
+                const deploymentsData = JSON.parse(deployments);
+                
+                if (deploymentsData.items && deploymentsData.items.length > 0) {
+                  const failedDeployments = deploymentsData.items.filter(d => 
+                    d.status.replicas !== d.status.readyReplicas || 
+                    d.status.unavailableReplicas > 0
+                  );
+                  
+                  if (failedDeployments.length > 0) {
+                    degradedDetails += '#### Deployments with Issues\n\n';
+                    for (const deploy of failedDeployments) {
+                      degradedDetails += `**Deployment:** \`${deploy.metadata.name}\`\n`;
+                      degradedDetails += `- Desired Replicas: ${deploy.status.replicas || 0}\n`;
+                      degradedDetails += `- Ready Replicas: ${deploy.status.readyReplicas || 0}\n`;
+                      degradedDetails += `- Unavailable Replicas: ${deploy.status.unavailableReplicas || 0}\n`;
+                      
+                      if (deploy.status.conditions) {
+                        const failedCondition = deploy.status.conditions.find(c => c.status === 'False');
+                        if (failedCondition) {
+                          degradedDetails += `- Condition: ${failedCondition.type}\n`;
+                          degradedDetails += `- Reason: ${failedCondition.reason}\n`;
+                          degradedDetails += `- Message: ${failedCondition.message}\n`;
+                        }
+                      }
+                      degradedDetails += '\n';
+                    }
+                  }
+                }
+                
+              } catch (e) {
+                console.error('Error getting degraded resources:', e.message);
+                degradedDetails = '\n### ⚠️ Unable to retrieve degraded resource details\n\n' + e.message + '\n';
+              }
+              
+            } catch (e) {
+              console.error('Error getting cluster info:', e.message);
+              clusterName = clusterUrl;
+              clusterContext = 'Unable to retrieve';
             }
             
             const issueTitle = `🚨 ArgoCD Deployment Failed: ${appName}`;
@@ -46,7 +145,8 @@ jobs:
             
             | Field | Value |
             |-------|-------|
-            | Cluster Name | \`${clusterName}\` |
+            | Cluster Context | \`${clusterContext}\` |
+            | Cluster API Server | \`${clusterName}\` |
             | Cluster URL | \`${clusterUrl}\` |
             | Namespace | \`${namespace}\` |
             
@@ -64,6 +164,25 @@ jobs:
             
             \`\`\`
             ${message}
+            \`\`\`
+            ${degradedDetails}
+            ### Troubleshooting Commands
+            
+            \`\`\`bash
+            # Check application status in ArgoCD
+            argocd app get ${appName}
+            
+            # Check pods in namespace
+            kubectl get pods -n ${namespace}
+            
+            # Describe failed pods
+            kubectl describe pods -n ${namespace}
+            
+            # Get pod logs
+            kubectl logs -n ${namespace} <pod-name>
+            
+            # Check events
+            kubectl get events -n ${namespace} --sort-by='.lastTimestamp'
             \`\`\`
             
             ### Quick Links

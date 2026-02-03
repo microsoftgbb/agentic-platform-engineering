@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: notworking-aks-store-test
+  name: another-kind-of-working-aks-store
   namespace: argocd
   annotations:
     # Enable notifications on sync failures
