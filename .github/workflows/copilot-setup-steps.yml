@@ -13,7 +13,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    environment: copilot  # Must be exactly 'copilot' (lowercase) to match federated credential
+    environment: demo
 
     steps:
       - name: Checkout repository
