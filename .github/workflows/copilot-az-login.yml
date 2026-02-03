@@ -36,12 +36,15 @@ jobs:
 
       # Setup Azure Federated Identity Credentials
       - name: Azure CLI Login
-        uses: Azure/login@v2.2.0
+        uses: azure/login@v2
         with:
           client-id: ${{ secrets.ARM_CLIENT_ID }}
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
       - name: 'Validate Workload Identity Auth Works'
-        run: |
-          az account show
-          az group list
+        uses:  azure/login@v2
+        with:
+          azcliversion: latest
+          inlineScript: |
+            az account show
+            az group list
