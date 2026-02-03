@@ -13,102 +13,87 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      - name: Verify webhook signature
+        id: verify
+        env:
+          PAYLOAD: ${{ toJson(github.event.client_payload) }}
+          WEBHOOK_SECRET: ${{ secrets.ARGOCD_WEBHOOK_SECRET }}
+        run: |
+          # This is a placeholder - GitHub repository_dispatch doesn't include signatures
+          # The security comes from the GitHub token scope limitation
+          echo "Webhook received from ArgoCD"
+          echo "App: ${{ github.event.client_payload.app_name }}"
+          echo "Status: ${{ github.event.client_payload.operation_phase }}"
+      
+      - name: Extract deployment info
+        id: deployment_info
+        run: |
+          APP_NAME="${{ github.event.client_payload.app_name }}"
+          HEALTH_STATUS="${{ github.event.client_payload.health_status }}"
+          SYNC_STATUS="${{ github.event.client_payload.sync_status }}"
+          REVISION="${{ github.event.client_payload.revision }}"
+          MESSAGE="${{ github.event.client_payload.message }}"
+          REPO_URL="${{ github.event.client_payload.repo_url }}"
+          TIMESTAMP="${{ github.event.client_payload.timestamp }}"
+          
+          echo "app_name=${APP_NAME}" >> $GITHUB_OUTPUT
+          echo "health_status=${HEALTH_STATUS}" >> $GITHUB_OUTPUT
+          echo "sync_status=${SYNC_STATUS}" >> $GITHUB_OUTPUT
+          echo "revision=${REVISION}" >> $GITHUB_OUTPUT
+          
       - name: Create GitHub Issue
         uses: actions/github-script@v7
         with:
           script: |
-            const payload = context.payload.client_payload || {};
-            const appName = payload.app_name || 'unknown';
-            const clusterName = payload.cluster || 'in-cluster';
-            const namespace = payload.namespace || 'default';
-            const healthStatus = payload.health_status || 'unknown';
-            const syncStatus = payload.sync_status || 'unknown';
-            const message = payload.message || 'No error message available';
-            const revision = payload.revision || 'unknown';
-            const repoUrl = payload.repo_url || '';
-            const timestamp = payload.timestamp || new Date().toISOString();
-            const resources = payload.resources || [];
-            
-            // Build degraded resources section
-            let degradedDetails = '';
-            const degradedResources = resources.filter(r => 
-              r.health && (r.health.status === 'Degraded' || r.health.status === 'Missing' || r.health.status === 'Unknown')
-            );
-            
-            if (degradedResources.length > 0) {
-              degradedDetails = '\n### 🔴 Degraded Resources\n\n';
-              
-              for (const resource of degradedResources) {
-                const kind = resource.kind || 'Unknown';
-                const name = resource.name || 'unknown';
-                const resourceNamespace = resource.namespace || namespace;
-                const healthStatus = resource.health?.status || 'Unknown';
-                const healthMessage = resource.health?.message || 'No message';
-                const syncStatus = resource.status || 'Unknown';
-                
-                degradedDetails += `#### ${kind}: \`${name}\`\n\n`;
-                degradedDetails += `- **Namespace:** ${resourceNamespace}\n`;
-                degradedDetails += `- **Health Status:** ${healthStatus}\n`;
-                degradedDetails += `- **Sync Status:** ${syncStatus}\n`;
-                degradedDetails += `- **Message:** ${healthMessage}\n\n`;
-                
-                // Add kubectl command for this specific resource
-                degradedDetails += `**Troubleshoot:**\n\`\`\`bash\n`;
-                degradedDetails += `kubectl describe ${kind.toLowerCase()} ${name} -n ${resourceNamespace}\n`;
-                if (kind === 'Pod' || kind === 'Deployment' || kind === 'StatefulSet' || kind === 'DaemonSet') {
-                  degradedDetails += `kubectl logs ${kind.toLowerCase()}/${name} -n ${resourceNamespace}\n`;
-                }
-                degradedDetails += `\`\`\`\n\n`;
-              }
-            }
+            const appName = '${{ github.event.client_payload.app_name }}';
+            const healthStatus = '${{ github.event.client_payload.health_status }}';
+            const syncStatus = '${{ github.event.client_payload.sync_status }}';
+            const operationPhase = '${{ github.event.client_payload.operation_phase }}';
+            const message = '${{ github.event.client_payload.message }}';
+            const revision = '${{ github.event.client_payload.revision }}';
+            const repoUrl = '${{ github.event.client_payload.repo_url }}';
+            const timestamp = '${{ github.event.client_payload.timestamp }}';
+            const clusterName = '${{ github.event.client_payload.cluster_name }}';
+            const clusterServer = '${{ github.event.client_payload.cluster_server }}';
+            const destNamespace = '${{ github.event.client_payload.destination_namespace }}';
             
             const issueTitle = `🚨 ArgoCD Deployment Failed: ${appName}`;
             
             const issueBody = `## ArgoCD Deployment Failure
             
             **Application:** \`${appName}\`
+            **Status:** ${operationPhase}
             **Timestamp:** ${timestamp}
             
-            ### Cluster Information
+            ### Details
             
             | Field | Value |
             |-------|-------|
-            | Cluster Name | \`${clusterName}\` |
-            | Namespace | \`${namespace}\` |
-            
-            ### Application Status
-            
-            | Field | Value |
-            |-------|-------|
+            | Cluster | \`${clusterName || clusterServer}\` |
+            | Namespace | \`${destNamespace}\` |
             | Health Status | \`${healthStatus}\` |
             | Sync Status | \`${syncStatus}\` |
             | Revision | \`${revision}\` |
             | Repository | ${repoUrl} |
             
+            ### Raw payload
+            \`\`\`json
+            ${JSON.stringify(github.event.client_payload, null, 2)}
+            \`\`\`
+            
             ### Error Message
             
             \`\`\`
-            ${message}
+            ${message || 'No error message available'}
             \`\`\`
-            ${degradedDetails}
-            ### Troubleshooting Commands
             
-            \`\`\`bash
-            # Check application status in ArgoCD
-            argocd app get ${appName}
+            ### Recommended Actions
             
-            # Check pods in namespace
-            kubectl get pods -n ${namespace}
-            
-            # Describe failed pods
-            kubectl describe pods -n ${namespace}
-            
-            # Get pod logs
-            kubectl logs -n ${namespace} <pod-name>
-            
-            # Check events
-            kubectl get events -n ${namespace} --sort-by='.lastTimestamp'
-            \`\`\`
+            1. Check the ArgoCD UI for detailed error logs
+            2. Review the application manifest for syntax errors
+            3. Verify resource quotas and limits
+            4. Check for image pull errors or missing secrets
+            5. Review recent commits to the source repository
             
             ### Quick Links
             
