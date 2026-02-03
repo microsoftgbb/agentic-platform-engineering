@@ -34,41 +34,40 @@ jobs:
         with:
           script: |
             const appName = '${{ github.event.client_payload.app_name }}';
+            const cluster = '${{ github.event.client_payload.cluster }}';
+            const namespace = '${{ github.event.client_payload.namespace }}';
             const healthStatus = '${{ github.event.client_payload.health_status }}';
             const syncStatus = '${{ github.event.client_payload.sync_status }}';
-            const operationPhase = '${{ github.event.client_payload.operation_phase }}';
             const message = '${{ github.event.client_payload.message }}';
             const revision = '${{ github.event.client_payload.revision }}';
             const repoUrl = '${{ github.event.client_payload.repo_url }}';
+            const targetRevision = '${{ github.event.client_payload.target_revision }}';
             const timestamp = '${{ github.event.client_payload.timestamp }}';
-            const clusterName = '${{ github.event.client_payload.cluster_name }}';
-            const clusterServer = '${{ github.event.client_payload.cluster_server }}';
-            const destNamespace = '${{ github.event.client_payload.destination_namespace }}';
             
             const issueTitle = `🚨 ArgoCD Deployment Failed: ${appName}`;
             
             const issueBody = `## ArgoCD Deployment Failure
             
             **Application:** \`${appName}\`
-            **Status:** ${operationPhase}
-            **Timestamp:** ${timestamp}
+            **Timestamp:** ${timestamp || 'N/A'}
             
             ### Details
             
             | Field | Value |
             |-------|-------|
-            | Cluster | \`${clusterName || clusterServer}\` |
-            | Namespace | \`${destNamespace}\` |
+            | Cluster | \`${cluster}\` |
+            | Namespace | \`${namespace}\` |
             | Health Status | \`${healthStatus}\` |
             | Sync Status | \`${syncStatus}\` |
             | Revision | \`${revision}\` |
+            | Target Revision | \`${targetRevision}\` |
             | Repository | ${repoUrl} |
             
             ### Raw payload
             \`\`\`json
             ${JSON.stringify(github.event.client_payload, null, 2)}
             \`\`\`
-            
+
             ### Error Message
             
             \`\`\`
