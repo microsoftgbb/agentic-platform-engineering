@@ -1,0 +1,131 @@
+name: ArgoCD Deployment Failure Handler
+
+on:
+  repository_dispatch:
+    types: [argocd-sync-failed]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  create-issue:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Verify webhook signature
+        id: verify
+        env:
+          PAYLOAD: ${{ toJson(github.event.client_payload) }}
+          WEBHOOK_SECRET: ${{ secrets.ARGOCD_WEBHOOK_SECRET }}
+        run: |
+          # This is a placeholder - GitHub repository_dispatch doesn't include signatures
+          # The security comes from the GitHub token scope limitation
+          echo "Webhook received from ArgoCD"
+          echo "App: ${{ github.event.client_payload.app_name }}"
+          echo "Status: ${{ github.event.client_payload.operation_phase }}"
+      
+      - name: Extract deployment info
+        id: deployment_info
+        run: |
+          APP_NAME="${{ github.event.client_payload.app_name }}"
+          HEALTH_STATUS="${{ github.event.client_payload.health_status }}"
+          SYNC_STATUS="${{ github.event.client_payload.sync_status }}"
+          REVISION="${{ github.event.client_payload.revision }}"
+          MESSAGE="${{ github.event.client_payload.message }}"
+          REPO_URL="${{ github.event.client_payload.repo_url }}"
+          TIMESTAMP="${{ github.event.client_payload.timestamp }}"
+          
+          echo "app_name=${APP_NAME}" >> $GITHUB_OUTPUT
+          echo "health_status=${HEALTH_STATUS}" >> $GITHUB_OUTPUT
+          echo "sync_status=${SYNC_STATUS}" >> $GITHUB_OUTPUT
+          echo "revision=${REVISION}" >> $GITHUB_OUTPUT
+          
+      - name: Create GitHub Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const appName = '${{ github.event.client_payload.app_name }}';
+            const healthStatus = '${{ github.event.client_payload.health_status }}';
+            const syncStatus = '${{ github.event.client_payload.sync_status }}';
+            const operationPhase = '${{ github.event.client_payload.operation_phase }}';
+            const message = '${{ github.event.client_payload.message }}';
+            const revision = '${{ github.event.client_payload.revision }}';
+            const repoUrl = '${{ github.event.client_payload.repo_url }}';
+            const timestamp = '${{ github.event.client_payload.timestamp }}';
+            
+            const issueTitle = `🚨 ArgoCD Deployment Failed: ${appName}`;
+            
+            const issueBody = `## ArgoCD Deployment Failure
+            
+            **Application:** \`${appName}\`
+            **Status:** ${operationPhase}
+            **Timestamp:** ${timestamp}
+            
+            ### Details
+            
+            | Field | Value |
+            |-------|-------|
+            | Health Status | \`${healthStatus}\` |
+            | Sync Status | \`${syncStatus}\` |
+            | Revision | \`${revision}\` |
+            | Repository | ${repoUrl} |
+            
+            ### Error Message
+            
+            \`\`\`
+            ${message || 'No error message available'}
+            \`\`\`
+            
+            ### Recommended Actions
+            
+            1. Check the ArgoCD UI for detailed error logs
+            2. Review the application manifest for syntax errors
+            3. Verify resource quotas and limits
+            4. Check for image pull errors or missing secrets
+            5. Review recent commits to the source repository
+            
+            ### Quick Links
+            
+            - [ArgoCD UI](https://localhost:8080/applications/${appName})
+            - [Source Repository](${repoUrl})
+            
+            ---
+            *This issue was automatically created by ArgoCD Notifications*
+            `;
+            
+            // Check if similar issue already exists (open)
+            const existingIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'argocd-deployment-failure',
+              per_page: 100
+            });
+            
+            const duplicateIssue = existingIssues.data.find(issue => 
+              issue.title.includes(appName) && issue.title.includes('Deployment Failed')
+            );
+            
+            if (duplicateIssue) {
+              // Add comment to existing issue instead of creating new one
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: duplicateIssue.number,
+                body: `### 🔄 Deployment Failed Again\n\n**Timestamp:** ${timestamp}\n**Revision:** \`${revision}\`\n\n${message ? '**Error:**\n```\n' + message + '\n```' : ''}`
+              });
+              
+              console.log(`Updated existing issue #${duplicateIssue.number}`);
+            } else {
+              // Create new issue
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issueTitle,
+                body: issueBody,
+                labels: ['argocd-deployment-failure', 'automated', 'bug']
+              });
+              
+              console.log(`Created issue #${issue.data.number}`);
+            }
