@@ -45,6 +45,10 @@ data:
               "revision": "{{.app.status.sync.revision}}",
               "repo_url": "{{.app.spec.source.repoURL}}",
               "target_revision": "{{.app.spec.source.targetRevision}}",
-              "timestamp": "{{.app.status.operationState.finishedAt}}"
+              "timestamp": "{{.app.status.operationState.finishedAt}}",
+              "cluster": "{{.app.spec.destination.server}}",
+              "cluster_name": "{{.app.spec.destination.name}}",
+              "namespace": "{{.app.spec.destination.namespace}}",
+              "resources": {{toJson .app.status.resources}}
             }
           }
