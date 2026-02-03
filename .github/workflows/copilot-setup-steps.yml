@@ -13,8 +13,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    environment: copilot
-
+      
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
