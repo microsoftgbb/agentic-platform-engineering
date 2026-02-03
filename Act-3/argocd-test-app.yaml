@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: 2-broken-apps
+  namespace: argocd
+  annotations:
+    # Enable notifications on sync failures
+    notifications.argoproj.io/subscribe.on-sync-failed.github-webhook: ""
+    notifications.argoproj.io/subscribe.on-health-degraded.github-webhook: ""
+spec:
+  project: default
+  source:
+    # Using a public example repo that will fail
+    repoURL: https://github.com/dcasati/argocd-notification-examples.git
+    targetRevision: main
+    path: apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+    retry:
+      limit: 2
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m
+  # Ignore differences to speed up health checks
+  ignoreDifferences:
+    - group: ""
+      kind: "Service"
+      jsonPointers:
+        - /spec/clusterIP
+        - /spec/clusterIPs

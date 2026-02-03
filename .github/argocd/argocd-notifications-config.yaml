@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+data:
+  # Cluster name - set this to your cluster context name
+  # You can set this automatically with: kubectl patch configmap argocd-notifications-cm -n argocd -p "{\"data\":{\"cluster-name\":\"$(kubectl config current-context)\"}}"
+  cluster-name: "CLUSTER_NAME_PLACEHOLDER"
+  
+  # GitHub webhook service configuration
+  service.webhook.github-webhook: |
+    url: https://api.github.com/repos/DevExpGbb/agentic-platform-engineering/dispatches
+    headers:
+    - name: Accept
+      value: application/vnd.github+json
+    - name: Authorization
+      value: Bearer $github-token
+    - name: X-GitHub-Api-Version
+      value: "2022-11-28"
+    - name: Content-Type
+      value: application/json
+
+  # Trigger on sync failures
+  trigger.on-sync-failed: |
+    - when: app.status.operationState.phase in ['Error', 'Failed']
+      send: [sync-failed-webhook]
+
+  # Trigger on degraded health
+  trigger.on-health-degraded: |
+    - when: app.status.health.status == 'Degraded'
+      send: [sync-failed-webhook]
+
+  # Template for the webhook payload
+  template.sync-failed-webhook: |
+    webhook:
+      github-webhook:
+        method: POST
+        body: |
+          {
+            "event_type": "argocd-sync-failed",
+            "client_payload": {
+              "app_name": "{{.app.metadata.name}}",
+              "health_status": "{{.app.status.health.status}}",
+              "sync_status": "{{.app.status.sync.status}}",
+              "message": "{{.app.status.operationState.message}}",
+              "revision": "{{.app.status.sync.revision}}",
+              "repo_url": "{{.app.spec.source.repoURL}}",
+              "cluster": "$cluster-name",
+              "namespace": "{{.app.spec.destination.namespace}}",
+              "timestamp": "{{.app.status.operationState.finishedAt}}",
+              "resources": {{toJson .app.status.resources}}
+            }
+          }

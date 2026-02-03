@@ -1,0 +1,41 @@
+name: "Copilot - Azure Login"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+  ARM_USE_OIDC: true
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    environment: demo
+
+    # Job-level permissions override workflow-level, so you must include id-token here
+    permissions:
+      contents: write
+      id-token: write  # Required for Azure federated identity
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+      
+      - name: Validate Workload Identity Auth Works
+        run: |
+          az account show
+          az group list
