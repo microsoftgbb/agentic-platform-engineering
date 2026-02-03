@@ -10,12 +10,6 @@ permissions:
   contents: read
   issues: write
 
-env:
-  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-  ARM_USE_OIDC: true
-
 jobs:
   # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
   copilot-setup-steps:
@@ -35,23 +29,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      # Azure CLI is pre-installed on ubuntu-latest runners
-      # Login using service principal with client secret instead of federated identity
-      # This persists for the entire runner session, including when Copilot runs
-      - name: Azure CLI Login with Service Principal
-        env:
-          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-        run: |
-          az login --service-principal \
-            --username "$ARM_CLIENT_ID" \
-            --password "$ARM_CLIENT_SECRET" \
-            --tenant "$ARM_TENANT_ID"
-          az account set --subscription "$ARM_SUBSCRIPTION_ID"
+      # Get OIDC token and login to Azure using federated identity
+      # This happens during setup when we have id-token permission
+      - name: Azure CLI Login with Federated Identity
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
       
       - name: Validate Azure Auth Works
         run: |
+          az account show
+          az group list --output table
+          echo "Azure CLI authentication successful and persisted for Copilot"
           az account show
           az group list --output table
