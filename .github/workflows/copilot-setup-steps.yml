@@ -29,19 +29,64 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Debug - Check if secrets are accessible
+        run: |
+          echo "Checking if secrets are set..."
+          
+          ERROR_COUNT=0
+          
+          if [ -z "${{ secrets.ARM_CLIENT_ID }}" ]; then
+            echo "ERROR: ARM_CLIENT_ID is empty or not set"
+            ERROR_COUNT=$((ERROR_COUNT + 1))
+          else
+            echo "✓ ARM_CLIENT_ID is set"
+          fi
+          
+          if [ -z "${{ secrets.ARM_TENANT_ID }}" ]; then
+            echo "ERROR: ARM_TENANT_ID is empty or not set"
+            ERROR_COUNT=$((ERROR_COUNT + 1))
+          else
+            echo "✓ ARM_TENANT_ID is set"
+          fi
+          
+          if [ -z "${{ secrets.ARM_SUBSCRIPTION_ID }}" ]; then
+            echo "ERROR: ARM_SUBSCRIPTION_ID is empty or not set"
+            ERROR_COUNT=$((ERROR_COUNT + 1))
+          else
+            echo "✓ ARM_SUBSCRIPTION_ID is set"
+          fi
+          
+          if [ $ERROR_COUNT -gt 0 ]; then
+            echo ""
+            echo "FATAL: $ERROR_COUNT required secret(s) missing."
+            echo "Please verify secrets are configured in the 'demo' environment."
+            echo "Go to: Settings → Environments → demo → Environment secrets"
+            exit 1
+          fi
+          
+          echo ""
+          echo "All required secrets are present. Proceeding with Azure login..."
+
       # Get OIDC token and login to Azure using federated identity
-      # This happens during setup when we have id-token permission
       - name: Azure CLI Login with Federated Identity
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.ARM_CLIENT_ID }}
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          enable-AzPSSession: false
       
-      - name: Validate Azure Auth Works
+      - name: Verify and persist Azure authentication
         run: |
+          echo "Verifying Azure authentication..."
           az account show
           az group list --output table
-          echo "Azure CLI authentication successful and persisted for Copilot"
+          
+          # Verify the Azure config directory exists and has auth tokens
+          ls -la ~/.azure/
+          
+          echo "Azure CLI authentication successful!"
+          echo "Auth tokens are cached in ~/.azure/ and will persist for this runner session"
+          echo "Copilot will use these cached credentials"
           az account show
           az group list --output table
