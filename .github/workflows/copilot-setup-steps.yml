@@ -14,7 +14,6 @@ jobs:
   # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
   copilot-setup-steps:
     runs-on: ubuntu-latest
-    environment: demo
 
     # Set the permissions to the lowest permissions possible needed for your steps.
     # Copilot will be given its own token for its operations.
@@ -59,8 +58,8 @@ jobs:
           if [ $ERROR_COUNT -gt 0 ]; then
             echo ""
             echo "FATAL: $ERROR_COUNT required secret(s) missing."
-            echo "Please verify secrets are configured in the 'demo' environment."
-            echo "Go to: Settings → Environments → demo → Environment secrets"
+            echo "Please verify secrets are configured as Repository secrets (not environment secrets)."
+            echo "Go to: Settings → Secrets and variables → Actions → Repository secrets"
             exit 1
           fi
           
