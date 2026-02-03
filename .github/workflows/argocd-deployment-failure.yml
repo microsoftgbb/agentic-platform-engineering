@@ -13,18 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Verify webhook signature
-        id: verify
-        env:
-          PAYLOAD: ${{ toJson(github.event.client_payload) }}
-          WEBHOOK_SECRET: ${{ secrets.ARGOCD_WEBHOOK_SECRET }}
-        run: |
-          # This is a placeholder - GitHub repository_dispatch doesn't include signatures
-          # The security comes from the GitHub token scope limitation
-          echo "Webhook received from ArgoCD"
-          echo "App: ${{ github.event.client_payload.app_name }}"
-          echo "Status: ${{ github.event.client_payload.operation_phase }}"
-      
       - name: Extract deployment info
         id: deployment_info
         run: |

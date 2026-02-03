@@ -61,15 +61,7 @@ vi .github/argocd/argocd-notifications-config.yaml
 kubectl apply -f .github/argocd/argocd-notifications-config.yaml
 ```
 
-### 4. Add Secret to GitHub Repository
-
-1. Go to your GitHub repository → Settings → Secrets and variables → Actions
-2. Click "New repository secret"
-3. Name: `ARGOCD_WEBHOOK_SECRET`
-4. Value: `udd2UzDVgpRyrIw9XBW8YiNuLO9aCV/4eKFe/wlr4hU=`
-5. Click "Add secret"
-
-### 5. Commit and Push the Workflow
+### 4. Commit and push the workflow
 
 ```bash
 cd /home/dcasati/src/agentic-platform-engineering
@@ -114,28 +106,6 @@ argocd app patch my-app --patch='{"metadata":{"annotations":{"notifications.argo
 
 ## Testing
 
-### Test the notification system:
-
-1. Deploy a broken application to trigger a failure
-2. Check ArgoCD notifications controller logs:
-   ```bash
-   kubectl logs -n argocd -l app.kubernetes.io/name=argocd-notifications-controller -f
-   ```
-3. Verify the webhook was sent to GitHub
-4. Check GitHub Actions workflow run
-5. Verify issue was created in your repository
-
-### Manual test without breaking a deployment:
-
-```bash
-# Send a test notification
-kubectl exec -n argocd deployment/argocd-notifications-controller -- \
-  argocd-notifications trigger on-sync-failed \
-  --app my-app
-```
-
-## What Happens on Deployment Failure
-
 1. ArgoCD detects sync failure or degraded health
 2. ArgoCD Notifications sends webhook to GitHub repository_dispatch
 3. GitHub Actions workflow is triggered
@@ -151,9 +121,9 @@ kubectl exec -n argocd deployment/argocd-notifications-controller -- \
 
 ## Security Features
 
-- ✅ Fine-grained GitHub token with minimal permissions
+- ✅ Fine-grained GitHub token with minimal permissions (Contents, Actions, Issues)
 - ✅ Token stored in Kubernetes secret (not in code)
-- ✅ Webhook secret for signature verification
+- ✅ Token authentication protects GitHub API endpoint
 - ✅ Automatic duplicate issue detection
 - ✅ Labels for easy filtering: `argocd-deployment-failure`, `automated`, `bug`
 
@@ -178,17 +148,6 @@ kubectl get configmap argocd-notifications-cm -n argocd -o yaml
 2. Verify the repository_dispatch event type matches: `argocd-sync-failed`
 3. Check workflow logs for errors
 4. Verify token permissions include "Actions: Read and write" and "Issues: Read and write"
-
-## Webhook Secret
-
-**Important:** The webhook secret is:
-```
-udd2UzDVgpRyrIw9XBW8YiNuLO9aCV/4eKFe/wlr4hU=
-```
-
-This must be stored in:
-- ✅ Kubernetes: `argocd-notifications-secret` (already done)
-- ⚠️ GitHub: Repository secrets as `ARGOCD_WEBHOOK_SECRET` (you need to do this)
 
 ## Next Steps
 
