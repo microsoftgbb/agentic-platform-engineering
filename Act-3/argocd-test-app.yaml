@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: aks-store-test
+  name: notworking-aks-store-test
   namespace: argocd
   annotations:
     # Enable notifications on sync failures
@@ -11,9 +11,9 @@ spec:
   project: default
   source:
     # Using a public example repo that will fail
-    repoURL: https://github.com/Azure-Samples/aks-store-demo.git
+    repoURL: https://github.com/dcasati/argocd-notification-examples.git
     targetRevision: main
-    path: invalid-path-to-trigger-error
+    path: apps
   destination:
     server: https://kubernetes.default.svc
     namespace: default
@@ -23,3 +23,17 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - PruneLast=true
+    retry:
+      limit: 2
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m
+  # Ignore differences to speed up health checks
+  ignoreDifferences:
+    - group: ""
+      kind: "Service"
+      jsonPointers:
+        - /spec/clusterIP
+        - /spec/clusterIPs
