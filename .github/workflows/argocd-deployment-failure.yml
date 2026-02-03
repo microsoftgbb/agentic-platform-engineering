@@ -53,6 +53,9 @@ jobs:
             const revision = '${{ github.event.client_payload.revision }}';
             const repoUrl = '${{ github.event.client_payload.repo_url }}';
             const timestamp = '${{ github.event.client_payload.timestamp }}';
+            const clusterName = '${{ github.event.client_payload.cluster_name }}';
+            const clusterServer = '${{ github.event.client_payload.cluster_server }}';
+            const destNamespace = '${{ github.event.client_payload.destination_namespace }}';
             
             const issueTitle = `🚨 ArgoCD Deployment Failed: ${appName}`;
             
@@ -66,10 +69,17 @@ jobs:
             
             | Field | Value |
             |-------|-------|
+            | Cluster | \`${clusterName || clusterServer}\` |
+            | Namespace | \`${destNamespace}\` |
             | Health Status | \`${healthStatus}\` |
             | Sync Status | \`${syncStatus}\` |
             | Revision | \`${revision}\` |
             | Repository | ${repoUrl} |
+            
+            ### Raw payload
+            \`\`\`json
+            ${JSON.stringify(github.event.client_payload, null, 2)}
+            \`\`\`
             
             ### Error Message
             
