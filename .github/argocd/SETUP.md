@@ -36,32 +36,103 @@ ArgoCD Deployment Failure → ArgoCD Notifications → GitHub Repository Dispatc
 kubectl patch secret argocd-notifications-secret -n argocd -p='{"stringData":{"github-token":"YOUR_GITHUB_TOKEN_HERE"}}'
 ```
 
-### 3. Set Environment Variables in Config
+### 3. Configure Cluster Name Context
 
-Edit the ArgoCD notifications ConfigMap to set your GitHub owner and repo:
+Set the cluster name that will be included in notifications:
+
+```bash
+# Get current cluster context name
+CLUSTER_NAME=$(kubectl config current-context)
+
+# Add the context to the ConfigMap
+kubectl patch configmap argocd-notifications-cm -n argocd --type=merge -p "{\"data\":{\"context\":\"clusterName: ${CLUSTER_NAME}\n\"}}"
+```
+
+The cluster name will be accessible in notification templates as `{{.context.clusterName}}`.
+
+### 4. Set Environment Variables in Config
+
+Configure the webhook service and notification template:
 
 ```bash
 # Replace with your values
 export GITHUB_OWNER="your-github-username-or-org"
 export GITHUB_REPO="your-repo-name"
 
-# Update the webhook URL
-kubectl patch configmap argocd-notifications-cm -n argocd --type=merge -p="{\"data\":{\"service.webhook.github-webhook\":\"url: https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/dispatches\nheaders:\n- name: Accept\n  value: application/vnd.github+json\n- name: Authorization\n  value: Bearer \$github-token\n- name: X-GitHub-Api-Version\n  value: '2022-11-28'\n- name: Content-Type\n  value: application/json\"}}"
+# Add the GitHub webhook service configuration
+kubectl patch configmap argocd-notifications-cm -n argocd --type=merge -p "{\"data\":{\"service.webhook.github-webhook\":\"url: https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/dispatches\nheaders:\n- name: Accept\n  value: application/vnd.github+json\n- name: Authorization\n  value: Bearer \\\$github-token\n- name: X-GitHub-Api-Version\n  value: \\\"2022-11-28\\\"\n- name: Content-Type\n  value: application/json\n\"}}"
+
+# Add the webhook template (note: use single file method below if patch causes issues)
 ```
 
-Or manually edit and apply the config file:
+**Alternative: Apply complete configuration from file**
+
+If you encounter template parsing errors with patches, create and apply a complete configuration file:
 
 ```bash
-# Edit the file
-vi .github/argocd/argocd-notifications-config.yaml
+# Create the complete ConfigMap file
+cat <<'EOF' > /tmp/argocd-notifications-cm.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+  namespace: argocd
+data:
+  context: |
+    clusterName: YOUR_CLUSTER_NAME
+  service.webhook.github-webhook: |
+    url: https://api.github.com/repos/YOUR_OWNER/YOUR_REPO/dispatches
+    headers:
+    - name: Accept
+      value: application/vnd.github+json
+    - name: Authorization
+      value: Bearer $github-token
+    - name: X-GitHub-Api-Version
+      value: "2022-11-28"
+    - name: Content-Type
+      value: application/json
+  template.sync-failed-webhook: |
+    webhook:
+      github-webhook:
+        method: POST
+        body: |
+          {
+            "event_type": "argocd-sync-failed",
+            "client_payload": {
+              "app_name": "{{.app.metadata.name}}",
+              "health_status": "{{.app.status.health.status}}",
+              "sync_status": "{{.app.status.sync.status}}",
+              "message": "{{.app.status.operationState.message}}",
+              "revision": "{{.app.status.sync.revision}}",
+              "repo_url": "{{.app.spec.source.repoURL}}",
+              "cluster": "{{.context.clusterName}}",
+              "namespace": "{{.app.spec.destination.namespace}}",
+              "timestamp": "{{.app.status.operationState.finishedAt}}",
+              "resources": {{toJson .app.status.resources}}
+            }
+          }
+  trigger.on-health-degraded: |
+    - when: app.status.health.status == 'Degraded'
+      send: [sync-failed-webhook]
+  trigger.on-sync-failed: |
+    - when: app.status.operationState.phase in ['Error', 'Failed']
+      send: [sync-failed-webhook]
+EOF
 
-# Replace $GITHUB_OWNER and $GITHUB_REPO with your actual values
+# Edit the file to replace YOUR_CLUSTER_NAME, YOUR_OWNER, YOUR_REPO
+vi /tmp/argocd-notifications-cm.yaml
 
-# Apply it
-kubectl apply -f .github/argocd/argocd-notifications-config.yaml
+# Apply using replace --force to avoid kubectl apply annotation issues
+kubectl replace --force -f /tmp/argocd-notifications-cm.yaml
 ```
 
-### 4. Commit and push the workflow
+**Important notes:**
+- Use `kubectl patch` for incremental changes to preserve existing configuration
+- Use `kubectl replace --force` only if applying a complete configuration file, as it will overwrite the entire ConfigMap
+- The `kubectl apply` command can create problematic annotations that cause template parsing errors - avoid it for this ConfigMap
+- Use camelCase variable names in the context block (not hyphenated) to avoid template parsing errors
+
+### 5. Commit and push the workflow
 
 ```bash
 cd /home/dcasati/src/agentic-platform-engineering
