@@ -39,12 +39,17 @@ jobs:
       # Login using service principal with client secret instead of federated identity
       # This persists for the entire runner session, including when Copilot runs
       - name: Azure CLI Login with Service Principal
+        env:
+          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
         run: |
           az login --service-principal \
-            --username ${{ secrets.ARM_CLIENT_ID }} \
-            --password ${{ secrets.ARM_CLIENT_SECRET }} \
-            --tenant ${{ secrets.ARM_TENANT_ID }}
-          az account set --subscription ${{ secrets.ARM_SUBSCRIPTION_ID }}
+            --username "$ARM_CLIENT_ID" \
+            --password "$ARM_CLIENT_SECRET" \
+            --tenant "$ARM_TENANT_ID"
+          az account set --subscription "$ARM_SUBSCRIPTION_ID"
       
       - name: Validate Azure Auth Works
         run: |
