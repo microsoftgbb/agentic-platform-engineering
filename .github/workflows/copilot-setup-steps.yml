@@ -13,7 +13,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
-    environment: demo
+    environment: copilot
 
     steps:
       - name: Checkout repository
