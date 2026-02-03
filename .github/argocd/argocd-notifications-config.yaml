@@ -42,7 +42,7 @@ data:
               "message": "{{.app.status.operationState.message}}",
               "revision": "{{.app.status.sync.revision}}",
               "repo_url": "{{.app.spec.source.repoURL}}",
-              "cluster": "{{if .app.metadata.labels.cluster-name}}{{.app.metadata.labels.cluster-name}}{{else}}{{.app.spec.destination.server}}{{end}}",
+              "cluster": "{{.app.spec.destination.server}}",
               "namespace": "{{.app.spec.destination.namespace}}",
               "timestamp": "{{.app.status.operationState.finishedAt}}",
               "resources": {{toJson .app.status.resources}}

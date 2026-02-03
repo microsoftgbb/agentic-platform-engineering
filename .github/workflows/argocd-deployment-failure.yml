@@ -13,6 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      - name: Get cluster info
+        id: cluster-info
+        run: |
+          CLUSTER_CONTEXT=$(kubectl config current-context 2>/dev/null || echo "unknown")
+          echo "context=$CLUSTER_CONTEXT" >> $GITHUB_OUTPUT
+        continue-on-error: true
+        
       - name: Create GitHub Issue
         uses: actions/github-script@v7
         with:
@@ -29,18 +36,9 @@ jobs:
             const timestamp = payload.timestamp || new Date().toISOString();
             const resources = payload.resources || [];
             
-            // Determine cluster display
-            let clusterName = cluster;
-            let clusterUrl = 'N/A';
-            
-            if (cluster.startsWith('http')) {
-              // It's a URL, use as cluster URL
-              clusterUrl = cluster;
-              clusterName = cluster.includes('kubernetes.default.svc') ? 'in-cluster' : cluster;
-            } else {
-              // It's a friendly name from the label
-              clusterName = cluster;
-            }
+            // Get cluster name - prefer from outputs, fallback to parsing URL
+            const clusterContext = process.env.CLUSTER_CONTEXT || 'unknown';
+            let clusterName = clusterContext !== 'unknown' ? clusterContext : cluster;
             
             // Build degraded resources section
             let degradedDetails = '';
