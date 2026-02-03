@@ -21,6 +21,8 @@ data:
   trigger.on-sync-failed: |
     - when: app.status.operationState.phase in ['Error', 'Failed']
       send: [sync-failed-webhook]
+    - when: app.status.conditions != nil && app.status.conditions[0].type == 'ComparisonError'
+      send: [sync-failed-webhook]
 
   # Trigger on degraded health
   trigger.on-health-degraded: |
