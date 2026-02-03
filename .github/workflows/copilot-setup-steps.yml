@@ -1,91 +1,33 @@
 name: "Copilot Setup Steps"
 
-# Automatically run the setup steps when they are changed to allow for easy validation, and
-# allow manual testing through the repository's "Actions" tab
 on:
   workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
-  issues: write
 
 jobs:
-  # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
   copilot-setup-steps:
     runs-on: ubuntu-latest
-
-    # Set the permissions to the lowest permissions possible needed for your steps.
-    # Copilot will be given its own token for its operations.
     permissions:
-      # If you want to clone the repository as part of your setup steps, for example to install dependencies, you'll need the `contents: read` permission. If you don't clone the repository in your setup steps, Copilot will do this for you automatically after the steps complete.
-      contents: write
       id-token: write
+      contents: read
+    environment: copilot  # Must be exactly 'copilot' (lowercase) to match federated credential
 
-    # You can define any steps you want, and they will run before the agent starts.
-    # If you do not check out your code, Copilot will do this for you.
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Debug - Check if secrets are accessible
-        run: |
-          echo "Checking if secrets are set..."
-          
-          ERROR_COUNT=0
-          
-          if [ -z "${{ secrets.ARM_CLIENT_ID }}" ]; then
-            echo "ERROR: ARM_CLIENT_ID is empty or not set"
-            ERROR_COUNT=$((ERROR_COUNT + 1))
-          else
-            echo "✓ ARM_CLIENT_ID is set"
-          fi
-          
-          if [ -z "${{ secrets.ARM_TENANT_ID }}" ]; then
-            echo "ERROR: ARM_TENANT_ID is empty or not set"
-            ERROR_COUNT=$((ERROR_COUNT + 1))
-          else
-            echo "✓ ARM_TENANT_ID is set"
-          fi
-          
-          if [ -z "${{ secrets.ARM_SUBSCRIPTION_ID }}" ]; then
-            echo "ERROR: ARM_SUBSCRIPTION_ID is empty or not set"
-            ERROR_COUNT=$((ERROR_COUNT + 1))
-          else
-            echo "✓ ARM_SUBSCRIPTION_ID is set"
-          fi
-          
-          if [ $ERROR_COUNT -gt 0 ]; then
-            echo ""
-            echo "FATAL: $ERROR_COUNT required secret(s) missing."
-            echo "Please verify secrets are configured as Repository secrets (not environment secrets)."
-            echo "Go to: Settings → Secrets and variables → Actions → Repository secrets"
-            exit 1
-          fi
-          
-          echo ""
-          echo "All required secrets are present. Proceeding with Azure login..."
-
-      # Get OIDC token and login to Azure using federated identity
-      - name: Azure CLI Login with Federated Identity
+      - name: Azure login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.ARM_CLIENT_ID }}
-          tenant-id: ${{ secrets.ARM_TENANT_ID }}
-          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-          enable-AzPSSession: false
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       
-      - name: Verify and persist Azure authentication
+      - name: Verify Azure access
         run: |
-          echo "Verifying Azure authentication..."
-          az account show
-          az group list --output table
-          
-          # Verify the Azure config directory exists and has auth tokens
-          ls -la ~/.azure/
-          
-          echo "Azure CLI authentication successful!"
-          echo "Auth tokens are cached in ~/.azure/ and will persist for this runner session"
-          echo "Copilot will use these cached credentials"
+          echo "Successfully authenticated to Azure!"
           az account show
           az group list --output table
