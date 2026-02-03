@@ -37,18 +37,14 @@ data:
             "event_type": "argocd-sync-failed",
             "client_payload": {
               "app_name": "{{.app.metadata.name}}",
-              "app_namespace": "{{.app.metadata.namespace}}",
-              "sync_status": "{{.app.status.sync.status}}",
               "health_status": "{{.app.status.health.status}}",
-              "operation_phase": "{{.app.status.operationState.phase}}",
+              "sync_status": "{{.app.status.sync.status}}",
               "message": "{{.app.status.operationState.message}}",
               "revision": "{{.app.status.sync.revision}}",
               "repo_url": "{{.app.spec.source.repoURL}}",
-              "target_revision": "{{.app.spec.source.targetRevision}}",
-              "timestamp": "{{.app.status.operationState.finishedAt}}",
-              "cluster": "{{.app.spec.destination.server}}",
-              "cluster_name": "{{.app.spec.destination.name}}",
+              "cluster": "{{if .app.metadata.labels.cluster-name}}{{.app.metadata.labels.cluster-name}}{{else}}{{.app.spec.destination.server}}{{end}}",
               "namespace": "{{.app.spec.destination.namespace}}",
+              "timestamp": "{{.app.status.operationState.finishedAt}}",
               "resources": {{toJson .app.status.resources}}
             }
           }

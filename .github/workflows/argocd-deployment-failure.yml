@@ -19,17 +19,28 @@ jobs:
           script: |
             const payload = context.payload.client_payload || {};
             const appName = payload.app_name || 'unknown';
-            const clusterUrl = payload.cluster || 'unknown';
-            const clusterName = payload.cluster_name || clusterUrl;
+            const cluster = payload.cluster || 'unknown';
             const namespace = payload.namespace || 'default';
             const healthStatus = payload.health_status || 'unknown';
             const syncStatus = payload.sync_status || 'unknown';
             const message = payload.message || 'No error message available';
             const revision = payload.revision || 'unknown';
             const repoUrl = payload.repo_url || '';
-            const targetRevision = payload.target_revision || '';
             const timestamp = payload.timestamp || new Date().toISOString();
             const resources = payload.resources || [];
+            
+            // Determine cluster display
+            let clusterName = cluster;
+            let clusterUrl = 'N/A';
+            
+            if (cluster.startsWith('http')) {
+              // It's a URL, use as cluster URL
+              clusterUrl = cluster;
+              clusterName = cluster.includes('kubernetes.default.svc') ? 'in-cluster' : cluster;
+            } else {
+              // It's a friendly name from the label
+              clusterName = cluster;
+            }
             
             // Build degraded resources section
             let degradedDetails = '';
@@ -76,7 +87,6 @@ jobs:
             | Field | Value |
             |-------|-------|
             | Cluster Name | \`${clusterName}\` |
-            | Cluster URL | \`${clusterUrl}\` |
             | Namespace | \`${namespace}\` |
             
             ### Application Status
@@ -86,7 +96,6 @@ jobs:
             | Health Status | \`${healthStatus}\` |
             | Sync Status | \`${syncStatus}\` |
             | Revision | \`${revision}\` |
-            | Target Revision | \`${targetRevision}\` |
             | Repository | ${repoUrl} |
             
             ### Error Message
