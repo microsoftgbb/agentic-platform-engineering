@@ -33,23 +33,24 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const appName = '${{ github.event.client_payload.app_name }}';
-            const cluster = '${{ github.event.client_payload.cluster }}';
-            const namespace = '${{ github.event.client_payload.namespace }}';
-            const healthStatus = '${{ github.event.client_payload.health_status }}';
-            const syncStatus = '${{ github.event.client_payload.sync_status }}';
-            const message = '${{ github.event.client_payload.message }}';
-            const revision = '${{ github.event.client_payload.revision }}';
-            const repoUrl = '${{ github.event.client_payload.repo_url }}';
-            const targetRevision = '${{ github.event.client_payload.target_revision }}';
-            const timestamp = '${{ github.event.client_payload.timestamp }}';
+            const payload = context.payload.client_payload || {};
+            const appName = payload.app_name || 'unknown';
+            const cluster = payload.cluster || 'unknown';
+            const namespace = payload.namespace || 'default';
+            const healthStatus = payload.health_status || 'unknown';
+            const syncStatus = payload.sync_status || 'unknown';
+            const message = payload.message || 'No error message available';
+            const revision = payload.revision || 'unknown';
+            const repoUrl = payload.repo_url || '';
+            const targetRevision = payload.target_revision || '';
+            const timestamp = payload.timestamp || new Date().toISOString();
             
             const issueTitle = `🚨 ArgoCD Deployment Failed: ${appName}`;
             
             const issueBody = `## ArgoCD Deployment Failure
             
             **Application:** \`${appName}\`
-            **Timestamp:** ${timestamp || 'N/A'}
+            **Timestamp:** ${timestamp}
             
             ### Details
             
@@ -65,13 +66,13 @@ jobs:
             
             ### Raw payload
             \`\`\`json
-            ${JSON.stringify(github.event.client_payload, null, 2)}
+            ${JSON.stringify(payload, null, 2)}
             \`\`\`
 
             ### Error Message
             
             \`\`\`
-            ${message || 'No error message available'}
+            ${message}
             \`\`\`
             
             ### Recommended Actions
