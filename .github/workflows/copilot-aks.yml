@@ -92,17 +92,4 @@ jobs:
           echo "Kubeconfig fetched successfully!"
       - name: Check cluster
         run: |
-          az aks agent "is my cluster healthy?"
-      - name: Verify Cluster Access
-        run: |
-          echo "Testing cluster connectivity..."
-          kubectl cluster-info
-          echo ""
-          echo "=== Cluster Nodes ==="
-          kubectl get nodes -o wide
-          echo ""
-          echo "=== All Pods ==="
-          kubectl get pods -A
-          echo ""
-          echo "=== Namespaces ==="
-          kubectl get namespaces
+          az aks agent --status --resource-group ${{ steps.cluster-info.outputs.RESOURCE_GROUP }} --name ${{ steps.cluster-info.outputs.CLUSTER_NAME }} --namespace aks-mcp --no-interactive
