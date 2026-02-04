@@ -1,0 +1,99 @@
+name: "Copilot - AKS Access"
+
+on:
+  workflow_dispatch:
+    inputs:
+      resource_group:
+        description: 'Azure Resource Group'
+        required: true
+        default: 'rg-anyscale-demo'
+      cluster_name:
+        description: 'AKS Cluster Name'
+        required: true
+        default: 'aks-eastus2'
+  issues:
+    types: [labeled]
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    # Only run on label events if the label starts with 'cluster/'
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.label.name, 'cluster/')
+
+    # Job-level permissions override workflow-level, so you must include id-token here
+    permissions:
+      contents: write
+      id-token: write  # Required for Azure federated identity
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Parse cluster info from label or inputs
+        id: cluster-info
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            # Use workflow inputs
+            echo "RESOURCE_GROUP=${{ github.event.inputs.resource_group }}" >> $GITHUB_OUTPUT
+            echo "CLUSTER_NAME=${{ github.event.inputs.cluster_name }}" >> $GITHUB_OUTPUT
+            echo "Using workflow inputs: RG=${{ github.event.inputs.resource_group }}, Cluster=${{ github.event.inputs.cluster_name }}"
+          else
+            # Parse from label: cluster/<resource-group>/<cluster-name>
+            LABEL="${{ github.event.label.name }}"
+            echo "Parsing label: $LABEL"
+            
+            # Extract resource group and cluster name from label
+            # Expected format: cluster/<resource-group>/<cluster-name>
+            RESOURCE_GROUP=$(echo "$LABEL" | cut -d'/' -f2)
+            CLUSTER_NAME=$(echo "$LABEL" | cut -d'/' -f3)
+            
+            if [ -z "$RESOURCE_GROUP" ] || [ -z "$CLUSTER_NAME" ]; then
+              echo "ERROR: Invalid label format. Expected: cluster/<resource-group>/<cluster-name>"
+              echo "Got: $LABEL"
+              exit 1
+            fi
+            
+            echo "RESOURCE_GROUP=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
+            echo "CLUSTER_NAME=$CLUSTER_NAME" >> $GITHUB_OUTPUT
+            echo "Parsed from label: RG=$RESOURCE_GROUP, Cluster=$CLUSTER_NAME"
+          fi
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+      
+      - name: Verify Azure Login
+        run: |
+          echo "Verifying Azure authentication..."
+          az account show
+          
+      - name: Get AKS Credentials
+        run: |
+          echo "Fetching kubeconfig for cluster ${{ steps.cluster-info.outputs.CLUSTER_NAME }}..."
+          az aks get-credentials \
+            --resource-group ${{ steps.cluster-info.outputs.RESOURCE_GROUP }} \
+            --name ${{ steps.cluster-info.outputs.CLUSTER_NAME }} \
+            --overwrite-existing
+          echo "Kubeconfig fetched successfully!"
+          
+      - name: Verify Cluster Access
+        run: |
+          echo "Testing cluster connectivity..."
+          kubectl cluster-info
+          echo ""
+          echo "=== Cluster Nodes ==="
+          kubectl get nodes -o wide
+          echo ""
+          echo "=== All Pods ==="
+          kubectl get pods -A
+          echo ""
+          echo "=== Namespaces ==="
+          kubectl get namespaces
