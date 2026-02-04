@@ -90,7 +90,9 @@ jobs:
             --name ${{ steps.cluster-info.outputs.CLUSTER_NAME }} \
             --overwrite-existing
           echo "Kubeconfig fetched successfully!"
-          
+      - name: Check cluster
+        run: |
+          az aks agent "is my cluster healthy?"
       - name: Verify Cluster Access
         run: |
           echo "Testing cluster connectivity..."
