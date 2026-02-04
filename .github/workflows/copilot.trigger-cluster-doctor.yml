@@ -1,0 +1,50 @@
+name: Trigger Cluster Doctor
+
+# Modified from @sitoader's workflow at: https://github.com/sitoader/AgenticWorkflows/blob/main/.github/workflows/generate-docs.yml
+
+on:
+  workflow_dispatch:
+  issues:
+    types: [labeled]
+
+jobs:
+  generate-docs:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'cluster-doctor'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read    # Required to read repository content and commit diffs
+      issues: write     # Required to create GitHub issues for documentation recommendations
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Install GitHub Copilot CLI
+        run: |
+          curl -fsSL https://gh.io/copilot-install | bash
+          echo "Installed Copilot CLI version:"
+          copilot --version
+                    
+      - name: Analyze and delegate to Copilot
+        env:
+          GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_TOKEN }}        # Workflow token for MCP GitHub operations (issues)
+          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}       # Personal PAT for Copilot API authentication
+        run: |
+          echo "Analyzing issue #${{ github.event.issue.number }}"
+          echo "Loading documentation criteria from prompt..."
+          
+          PROMPT="Analyze the GitHub issue number {ISSUE_NUMBER} in the repository {REPOSITORY}. Any changes or fixes should be documented back in the GitHub Issue as a comment in the thread, and a PR should be created with any material changes to the repo as part of the fix and noted as part of the issue response."
+          PROMPT="${PROMPT//\{ISSUE_NUMBER\}/${{ github.event.issue.number }}}"
+          PROMPT="${PROMPT//\{REPOSITORY\}/${{ github.repository }}}"
+          
+          echo "Delegating to GitHub Copilot..."
+          echo "- Copilot will use MCP to examine the issue"
+          echo "- Copilot will decide if changes are needed"
+          echo "- Copilot will create an issue comment, PR and link them as needed."
+          echo ""
+
+          copilot -p "$PROMPT" \
+            --agent "cluster-doctor" \
+            --allow-all-tools
