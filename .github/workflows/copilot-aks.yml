@@ -28,6 +28,7 @@ permissions:
 jobs:
   copilot-setup-steps:
     runs-on: ubuntu-latest
+    environment: demo
     # Only run on label events if the label starts with 'cluster/'
     if: github.event_name == 'workflow_dispatch' || startsWith(github.event.label.name, 'cluster/')
 
