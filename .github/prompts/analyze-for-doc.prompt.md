@@ -1,3 +1,8 @@
+---
+name: Analyze Commit for Documentation Needs
+description: Analyze a specific commit to determine if documentation updates are required and create a GitHub issue if necessary.
+---
+
 # Analyze Commit and Create Documentation Issue
 
 Analyze commit `{COMMIT_SHA}` in repository `{REPOSITORY}` using the GitHub MCP server.
