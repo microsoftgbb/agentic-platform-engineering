@@ -92,4 +92,4 @@ jobs:
           echo "Kubeconfig fetched successfully!"
       - name: Check cluster
         run: |
-          az aks agent --status --resource-group ${{ steps.cluster-info.outputs.RESOURCE_GROUP }} --name ${{ steps.cluster-info.outputs.CLUSTER_NAME }} --namespace aks-mcp --no-interactive
+          az aks agent "Is my cluster healthy?" --resource-group ${{ steps.cluster-info.outputs.RESOURCE_GROUP }} --name ${{ steps.cluster-info.outputs.CLUSTER_NAME }} --namespace aks-mcp --no-interactive
