@@ -7,6 +7,11 @@
       "headers": {
         "Authorization": "Bearer ${GITHUB_MCP_TOKEN}"
       }
+    },
+    "aks-mcp": {
+      "type": "http",
+      "url": "http://localhost:8080/mcp/",
+      "tools": ["*"]
     }
   }
 }
