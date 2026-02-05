@@ -48,4 +48,5 @@ jobs:
 
           copilot -p "$PROMPT" \
             --agent "cluster-doctor" \
+            --additional-mcp-config @'.copilot/mcp-config.json' \
             --allow-all-tools
