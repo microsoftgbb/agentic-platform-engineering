@@ -8,12 +8,13 @@ on:
     types: [labeled]
 
 jobs:
-  generate-docs:
+  run-cluster-doctor:
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'cluster-doctor'
     runs-on: ubuntu-latest
     permissions:
-      contents: read    # Required to read repository content and commit diffs
+      contents: write    # Required to read repository content and commit diffs
       issues: write     # Required to create GitHub issues for documentation recommendations
+      pull-requests: write  # Required to create PRs if needed
     
     steps:
       - name: Checkout code
@@ -35,7 +36,7 @@ jobs:
           echo "Analyzing issue #${{ github.event.issue.number }}"
           echo "Loading documentation criteria from prompt..."
           
-          PROMPT="Analyze the GitHub issue number {ISSUE_NUMBER} in the repository {REPOSITORY}. Any changes or fixes should be documented back in the GitHub Issue as a comment in the thread, and a PR should be created with any material changes to the repo as part of the fix and noted as part of the issue response."
+          PROMPT="Use the GitHub MCP Server to help analyze GitHub Issue number {ISSUE_NUMBER} in the repository {REPOSITORY}. Any changes or fixes should be documented back in the GitHub Issue as a comment in the thread, and a PR should be created with any material changes to the repo as part of the fix and noted as part of the issue response."
           PROMPT="${PROMPT//\{ISSUE_NUMBER\}/${{ github.event.issue.number }}}"
           PROMPT="${PROMPT//\{REPOSITORY\}/${{ github.repository }}}"
           
