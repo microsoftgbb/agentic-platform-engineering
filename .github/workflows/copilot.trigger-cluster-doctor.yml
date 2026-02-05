@@ -36,9 +36,7 @@ jobs:
           echo "Analyzing issue #${{ github.event.issue.number }}"
           echo "Loading documentation criteria from prompt..."
           
-          PROMPT="Use the GitHub MCP Server to help analyze GitHub Issue number {ISSUE_NUMBER} in the repository {REPOSITORY}. Any changes or fixes should be documented back in the GitHub Issue as a comment in the thread, and a PR should be created with any material changes to the repo as part of the fix and noted as part of the issue response."
-          PROMPT="${PROMPT//\{ISSUE_NUMBER\}/${{ github.event.issue.number }}}"
-          PROMPT="${PROMPT//\{REPOSITORY\}/${{ github.repository }}}"
+          export PROMPT="Use the GitHub MCP Server to help analyze GitHub Issue #${{ github.event.issue.number }} in the repository ${{ github.repository }}. Any changes or fixes should be documented back in the GitHub Issue as a comment in the thread, and a PR should be created with any material changes to the repo as part of the fix and noted as part of the issue response."
           
           echo "Delegating to GitHub Copilot..."
           echo "- Copilot will use MCP to examine the issue"
