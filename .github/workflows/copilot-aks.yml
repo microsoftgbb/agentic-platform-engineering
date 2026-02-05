@@ -76,6 +76,12 @@ jobs:
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
       
+      - name: Install GitHub Copilot CLI
+        run: |
+          curl -fsSL https://gh.io/copilot-install | bash
+          echo "Installed Copilot CLI version:"
+          copilot --version
+
       - name: Verify Azure Login
         run: |
           echo "Verifying Azure authentication..."
