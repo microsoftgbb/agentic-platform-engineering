@@ -89,13 +89,22 @@ jobs:
             --name ${{ steps.cluster-info.outputs.CLUSTER_NAME }} \
             --overwrite-existing
           echo "Kubeconfig fetched successfully!"
-      - name: Run AKS agent health check (TTY-safe)
-        uses: azure/CLI@v2
-        with:
-          inlineScript: |
-            set -euo pipefail
 
-            # `script` provides a pseudo-TTY so the exec-in-pod path doesn't crash in CI
-            script -q -e -c \
-              'az aks agent "Is my cluster healthy?"--resource-group ${{ steps.cluster-info.outputs.RESOURCE_GROUP }} --name ${{ steps.cluster-info.outputs.CLUSTER_NAME }} --namespace aks-mcp --no-interactive' \
-              /dev/null          
+      - name: Run Copilot to get AKS info
+        env:
+          GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_TOKEN }}        # Workflow token for MCP GitHub operations (issues)
+          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}       # Personal PAT for Copilot API authentication
+        run: |
+          echo "Analyzing issue #${{ github.event.issue.number }}"
+          echo "Loading documentation criteria from prompt..."
+          
+          export PROMPT="How many nodes are in my AKS Cluster? Once you have that info, create a new GitHub Issue in this repository with the AKS Cluster node count information."
+          
+          echo "Delegating to GitHub Copilot..."
+          echo "- Copilot will use MCP to examine the AKS Cluster"
+          echo "- Copilot will use MCP to write the info to a new GitHub Issue"
+          echo ""
+
+          copilot -p "$PROMPT" \
+            --additional-mcp-config @'.copilot/mcp-config.json' \
+            --allow-all-tools
