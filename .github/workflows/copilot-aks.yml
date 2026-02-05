@@ -101,7 +101,8 @@ jobs:
           GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_TOKEN }}        # Workflow token for MCP GitHub operations (issues)
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}       # Personal PAT for Copilot API authentication
         run: |
-          kubectl port-forward -n aks-mcp svc/aks-mcp 8000:8000 & 2>&1> /dev/null
+          kubectl port-forward -n aks-mcp svc/aks-mcp 8000:8000 &
+          sleep 3  # Wait for port-forward to establish
           echo "Analyzing issue #${{ github.event.issue.number }}"
           echo "Loading documentation criteria from prompt..."
           
