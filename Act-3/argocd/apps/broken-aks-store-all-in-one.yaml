@@ -175,7 +175,7 @@ data:
   ORDER_QUEUE_USERNAME: dXNlcm5hbWU=
   ORDER_QUEUE_PASSWORD: cGFzc3dvcmQ=
 ---
-apiVersion: apps/v
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: order-service
@@ -472,7 +472,7 @@ spec:
         "kubernetes.io/os": linux
       containers:
         - name: store-admin
-          image: ghcr.io/azure-samples/aks-store-demo/store-dmin:2.1.0
+          image: ghcr.io/azure-samples/aks-store-demo/store-admin:2.1.0
           ports:
             - containerPort: 8081
               name: store-admin
