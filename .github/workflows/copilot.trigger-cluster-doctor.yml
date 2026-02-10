@@ -21,13 +21,61 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Parse cluster info from label or inputs
+        id: cluster-info
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            # Use workflow inputs
+            echo "RESOURCE_GROUP=${{ github.event.inputs.resource_group }}" >> $GITHUB_OUTPUT
+            echo "CLUSTER_NAME=${{ github.event.inputs.cluster_name }}" >> $GITHUB_OUTPUT
+            echo "Using workflow inputs: RG=${{ github.event.inputs.resource_group }}, Cluster=${{ github.event.inputs.cluster_name }}"
+          else
+            # Parse from label: cluster/<resource-group>/<cluster-name>
+            LABEL="${{ github.event.label.name }}"
+            echo "Parsing label: $LABEL"
+            
+            # Extract resource group and cluster name from label
+            # Expected format: cluster/<resource-group>/<cluster-name>
+            RESOURCE_GROUP=$(echo "$LABEL" | cut -d'/' -f2)
+            CLUSTER_NAME=$(echo "$LABEL" | cut -d'/' -f3)
+            
+            if [ -z "$RESOURCE_GROUP" ] || [ -z "$CLUSTER_NAME" ]; then
+              echo "ERROR: Invalid label format. Expected: cluster/<resource-group>/<cluster-name>"
+              echo "Got: $LABEL"
+              exit 1
+            fi
+            
+            echo "RESOURCE_GROUP=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
+            echo "CLUSTER_NAME=$CLUSTER_NAME" >> $GITHUB_OUTPUT
+            echo "Parsed from label: RG=$RESOURCE_GROUP, Cluster=$CLUSTER_NAME"
+          fi
           
       - name: Install GitHub Copilot CLI
         run: |
           curl -fsSL https://gh.io/copilot-install | bash
           echo "Installed Copilot CLI version:"
           copilot --version
-                    
+
+      - name: Verify Azure Login
+        run: |
+          echo "Verifying Azure authentication..."
+          az account show
+      
+      - name: Get AKS Credentials
+        run: |
+          echo "Fetching kubeconfig for cluster ${{ steps.cluster-info.outputs.CLUSTER_NAME }}..."
+          az aks get-credentials \
+            --resource-group ${{ steps.cluster-info.outputs.RESOURCE_GROUP }} \
+            --name ${{ steps.cluster-info.outputs.CLUSTER_NAME }} \
+            --overwrite-existing
+          echo "Kubeconfig fetched successfully!"
+          kubectl cluster-info
+          kubectl port-forward -n aks-mcp svc/aks-mcp 8000:8000 &
+          sleep 3  # Wait for port-forward to establish
+
+      
+      
       - name: Analyze and delegate to Copilot
         env:
           GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_TOKEN }}        # Workflow token for MCP GitHub operations (issues)
@@ -36,7 +84,7 @@ jobs:
           echo "Analyzing issue #${{ github.event.issue.number }}"
           echo "Loading documentation criteria from prompt..."
           
-          export PROMPT="Use the GitHub MCP Server to help analyze GitHub Issue #${{ github.event.issue.number }} in the repository ${{ github.repository }}. Any changes or fixes should be documented back in the GitHub Issue as a comment in the thread, and use GitHub MCP server to create a PR should any material changes to the repo be made as part of the fix and noted as part of the issue comment response, also via GitHub MCP server."
+          export PROMPT="Use the GitHub MCP Server to help analyze GitHub Issue #${{ github.event.issue.number }} in the repository ${{ github.repository }}. Any changes or fixes should be documented back in the GitHub Issue as a comment in the thread, and use GitHub MCP server to create a PR should any material changes to the repo be made as part of the fix and noted as part of the issue comment response, also via GitHub MCP server.  Leverage the AKS MCP server to get additional information to verify the issue and details about the AKS cluster."
           
           echo "Delegating to GitHub Copilot..."
           echo "- Copilot will use MCP to examine the issue"
