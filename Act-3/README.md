@@ -51,28 +51,28 @@ What if the moment a deployment failed, an automated system could:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                          Event-Driven Agent Workflow                          │
+│                          Event-Driven Agent Workflow                         │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  ┌─────────────┐    Webhook     ┌───────────────────┐    Creates    ┌──────┐│
-│  │   ArgoCD    │ ─────────────▶ │ argocd-deployment │ ────────────▶ │GitHub││
-│  │ (detects    │   repository   │ -failure.yml      │    Issue      │Issue ││
-│  │  failure)   │   _dispatch    │ (Workflow #1)     │   (labeled)   │      ││
-│  └─────────────┘                └───────────────────┘               └──┬───┘│
-│                                                                        │    │
-│                                         Label: "cluster-doctor"        │    │
-│                                                                        ▼    │
-│  ┌─────────────┐    Reads       ┌───────────────────┐    Uses    ┌────────┐│
-│  │   Cluster   │ ◀───────────── │ copilot.trigger-  │ ─────────▶ │ GitHub ││
-│  │   Doctor    │    Agent       │ cluster-doctor.yml│   Copilot  │MCP APIs││
-│  │   Agent     │    File        │ (Workflow #2)     │    CLI     │        ││
-│  └─────────────┘                └───────────────────┘            └────────┘│
-│        │                                                              │     │
-│        │                                                              │     │
-│        ▼                                                              ▼     │
-│  ┌────────────────────────────────────────────────────────────────────────┐ │
-│  │  Agent adds issue comment with diagnosis + creates PR with fix         │ │
-│  └────────────────────────────────────────────────────────────────────────┘ │
+│  ┌─────────────┐    Webhook     ┌───────────────────┐    Creates    ┌──────┐ │
+│  │   ArgoCD    │ ─────────────▶ │ argocd-deployment │ ────────────▶ │GitHub│ │
+│  │ (detects    │   repository   │ -failure.yml      │    Issue      │Issue │ │
+│  │  failure)   │   _dispatch    │ (Workflow #1)     │   (labeled)   │      │ │
+│  └─────────────┘                └───────────────────┘               └──┬───┘ │
+│                                                                        │     │
+│                                         Label: "cluster-doctor"        │     │
+│                                                                        ▼     │
+│  ┌─────────────┐    Reads       ┌───────────────────┐    Uses    ┌────────┐  │
+│  │   Cluster   │ ◀───────────── │ copilot.trigger-  │ ─────────▶ │ GitHub │  │
+│  │   Doctor    │    Agent       │ cluster-doctor.yml│   Copilot  │MCP APIs│  │
+│  │   Agent     │    File        │ (Workflow #2)     │    CLI     │        │  │
+│  └─────────────┘                └───────────────────┘            └────────┘  │
+│        │                                                              │      │
+│        │                                                              │      │
+│        ▼                                                              ▼      │
+│  ┌────────────────────────────────────────────────────────────────────────┐  │
+│  │  Agent adds issue comment with diagnosis + creates PR with fix         │  │
+│  └────────────────────────────────────────────────────────────────────────┘  │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
