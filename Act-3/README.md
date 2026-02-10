@@ -346,13 +346,25 @@ jobs:
             --allow-all-tools
 ```
 
+> [!NOTE]
+> **Why Two GitHub Tokens?**
+> 
+> The workflow uses two separate tokens for different purposes:
+> 
+> | Token | Source | Purpose |
+> |-------|--------|---------|
+> | `GITHUB_MCP_TOKEN` | `secrets.GITHUB_TOKEN` | Authenticates the MCP server with the GitHub API for repository operations (reading issues, creating PRs, posting comments). This is the automatic token provided by GitHub Actions with permissions scoped to the repository. |
+> | `GITHUB_TOKEN` | `secrets.COPILOT_CLI_TOKEN` | Authenticates the Copilot CLI with the GitHub Copilot service. This must be a Personal Access Token (PAT) or GitHub App token with GitHub Copilot-specific scopes—the automatic `GITHUB_TOKEN` cannot access Copilot APIs. |
+> 
+> **Why can't we use one token?** The automatic `GITHUB_TOKEN` provided by GitHub Actions is scoped to repository operations only and cannot authenticate with the GitHub Copilot service. Conversely, your GitHub Copilot token may not have the same repository permissions needed for the MCP server to create PRs. Separating them follows the principle of least privilege.  In the future the automatic GitHub Actions Workflow Token may be able to also call the GitHub Copilot endpoint - but not today (Feb 10 2026) 😢
+
 ### How the Pieces Connect
 
 1. **ArgoCD detects failure** → sends webhook to GitHub
 2. **Workflow #1 (`argocd-deployment-failure.yml`)** → creates issue with context
 3. **Human or automation adds `cluster-doctor` label to issue**
 4. **Workflow #2 (`copilot.trigger-cluster-doctor.yml`)** → fires on label event
-5. **Copilot CLI invokes Cluster Doctor agent** → reads issue, analyzes, proposes fix
+5. **GitHub Copilot CLI invokes Cluster Doctor agent** → reads issue, analyzes, proposes fix
 6. **Agent uses GitHub MCP Server** → adds comment to issue, creates PR with remediation
 
 ### MCP Configuration
@@ -391,7 +403,7 @@ The workflow uses MCP (Model Context Protocol) servers to give the agent access 
 > **Automatic vs. Human-Triggered**
 > 
 > You might choose to NOT auto-trigger the Cluster Doctor on every failure. Reasons:
-> - Cost control (Copilot PRU consumption)
+> - Cost control (GitHub Copilot PRU consumption)
 > - Some failures are transient and self-heal
 > - You want human triage before agent analysis
 > 
