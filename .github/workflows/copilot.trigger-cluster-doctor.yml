@@ -16,6 +16,7 @@ env:
 jobs:
   run-cluster-doctor:
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'cluster-doctor'
+    environment: copilot
     runs-on: ubuntu-latest
     permissions:
       id-token: write    # Required to do OIDC workfload federation token exchange with Azure
