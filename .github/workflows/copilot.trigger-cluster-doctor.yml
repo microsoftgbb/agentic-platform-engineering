@@ -7,11 +7,18 @@ on:
   issues:
     types: [labeled]
 
+env:
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+  ARM_USE_OIDC: true
+
 jobs:
   run-cluster-doctor:
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'cluster-doctor'
     runs-on: ubuntu-latest
     permissions:
+      id-token: write    # Required to do OIDC workfload federation token exchange with Azure
       contents: write    # Required to read repository content and commit diffs
       issues: write     # Required to create GitHub issues for documentation recommendations
       pull-requests: write  # Required to create PRs if needed
