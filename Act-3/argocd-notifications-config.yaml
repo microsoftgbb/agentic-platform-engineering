@@ -8,6 +8,10 @@ data:
   # You can set this automatically with: kubectl patch configmap argocd-notifications-cm -n argocd -p "{\"data\":{\"cluster-name\":\"$(kubectl config current-context)\"}}"
   cluster-name: "CLUSTER_NAME_PLACEHOLDER"
   
+  # Resource Group - set this from node label kubernetes.azure.com/network-resourcegroup
+  # You can set this automatically with: kubectl patch configmap argocd-notifications-cm -n argocd -p "{\"data\":{\"resource-group\":\"$(kubectl get nodes -o jsonpath='{.items[0].metadata.labels.kubernetes\.azure\.com/network-resourcegroup}')\"}}"
+  resource-group: "RESOURCE_GROUP_PLACEHOLDER"
+  
   # GitHub webhook service configuration
   service.webhook.github-webhook: |
     url: https://api.github.com/repos/DevExpGbb/agentic-platform-engineering/dispatches
@@ -47,6 +51,7 @@ data:
               "revision": "{{.app.status.sync.revision}}",
               "repo_url": "{{.app.spec.source.repoURL}}",
               "cluster": "$cluster-name",
+              "resource_group": "$resource-group",
               "namespace": "{{.app.spec.destination.namespace}}",
               "timestamp": "{{.app.status.operationState.finishedAt}}",
               "resources": {{toJson .app.status.resources}}
