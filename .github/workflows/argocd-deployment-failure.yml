@@ -20,6 +20,7 @@ jobs:
             const payload = context.payload.client_payload || {};
             const appName = payload.app_name || 'unknown';
             const clusterName = payload.cluster || 'in-cluster';
+            const resourceGroup = payload.resource_group || 'unknown';
             const namespace = payload.namespace || 'default';
             const healthStatus = payload.health_status || 'unknown';
             const syncStatus = payload.sync_status || 'unknown';
@@ -74,6 +75,7 @@ jobs:
             | Field | Value |
             |-------|-------|
             | Cluster Name | \`${clusterName}\` |
+            | Resource Group | \`${resourceGroup}\` |
             | Namespace | \`${namespace}\` |
             
             ### Application Status
