@@ -63,19 +63,19 @@ jobs:
             echo "CLUSTER_NAME=$CLUSTER_NAME" >> $GITHUB_OUTPUT
             echo "Parsed from label: RG=$RESOURCE_GROUP, Cluster=$CLUSTER_NAME"
           fi
-          
-      - name: Install GitHub Copilot CLI
-        run: |
-          curl -fsSL https://gh.io/copilot-install | bash
-          echo "Installed Copilot CLI version:"
-          copilot --version
-      
+
       - name: Azure CLI Login
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.ARM_CLIENT_ID }}
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+      
+      - name: Install GitHub Copilot CLI
+        run: |
+          curl -fsSL https://gh.io/copilot-install | bash
+          echo "Installed Copilot CLI version:"
+          copilot --version
 
       - name: Verify Azure Login
         run: |
