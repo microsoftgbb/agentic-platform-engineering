@@ -35,34 +35,57 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Parse cluster info from label or inputs
-        id: cluster-info
+      - name: Install GitHub Copilot CLI
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            # Use workflow inputs
-            echo "RESOURCE_GROUP=${{ github.event.inputs.resource_group }}" >> $GITHUB_OUTPUT
-            echo "CLUSTER_NAME=${{ github.event.inputs.cluster_name }}" >> $GITHUB_OUTPUT
-            echo "Using workflow inputs: RG=${{ github.event.inputs.resource_group }}, Cluster=${{ github.event.inputs.cluster_name }}"
-          else
-            # Parse from label: cluster/<resource-group>/<cluster-name>
-            LABEL="${{ github.event.label.name }}"
-            echo "Parsing label: $LABEL"
-            
-            # Extract resource group and cluster name from label
-            # Expected format: cluster/<resource-group>/<cluster-name>
-            RESOURCE_GROUP=$(echo "$LABEL" | cut -d'/' -f2)
-            CLUSTER_NAME=$(echo "$LABEL" | cut -d'/' -f3)
-            
-            if [ -z "$RESOURCE_GROUP" ] || [ -z "$CLUSTER_NAME" ]; then
-              echo "ERROR: Invalid label format. Expected: cluster/<resource-group>/<cluster-name>"
-              echo "Got: $LABEL"
-              exit 1
-            fi
-            
-            echo "RESOURCE_GROUP=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
-            echo "CLUSTER_NAME=$CLUSTER_NAME" >> $GITHUB_OUTPUT
-            echo "Parsed from label: RG=$RESOURCE_GROUP, Cluster=$CLUSTER_NAME"
+          curl -fsSL https://gh.io/copilot-install | bash
+          echo "Installed Copilot CLI version:"
+          copilot --version
+
+      - name: Parse cluster info from issue body
+        id: cluster-info
+        env:
+          GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+        run: |
+          echo "Parsing cluster info from issue #${{ github.event.issue.number }}..."
+          
+          # Set variables for prompt substitution
+          export ISSUE_NUMBER="${{ github.event.issue.number }}"
+          export REPOSITORY="${{ github.repository }}"
+          
+          # Load and substitute variables in prompt
+          PROMPT=$(envsubst < .github/prompts/parse-cluster-info.md)
+          
+          # Run Copilot and capture output
+          COPILOT_OUTPUT=$(copilot -p "$PROMPT" \
+            --agent "cluster-doctor" \
+            --additional-mcp-config @'.copilot/mcp-config.json' \
+            --allow-all-tools 2>&1)
+          
+          echo "Copilot output:"
+          echo "$COPILOT_OUTPUT"
+          
+          # Extract RESOURCE_GROUP and CLUSTER_NAME from Copilot output
+          RESOURCE_GROUP=$(echo "$COPILOT_OUTPUT" | grep -oP 'RESOURCE_GROUP=\K[^\s]+' | head -1)
+          CLUSTER_NAME=$(echo "$COPILOT_OUTPUT" | grep -oP 'CLUSTER_NAME=\K[^\s]+' | head -1)
+          
+          # Check for errors
+          if echo "$COPILOT_OUTPUT" | grep -q "ERROR="; then
+            echo "ERROR: Failed to extract cluster info from issue body"
+            echo "$COPILOT_OUTPUT"
+            exit 1
           fi
+          
+          if [ -z "$RESOURCE_GROUP" ] || [ -z "$CLUSTER_NAME" ]; then
+            echo "ERROR: Could not parse RESOURCE_GROUP or CLUSTER_NAME from Copilot output"
+            echo "RESOURCE_GROUP='$RESOURCE_GROUP'"
+            echo "CLUSTER_NAME='$CLUSTER_NAME'"
+            exit 1
+          fi
+          
+          echo "RESOURCE_GROUP=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
+          echo "CLUSTER_NAME=$CLUSTER_NAME" >> $GITHUB_OUTPUT
+          echo "Extracted from issue: RG=$RESOURCE_GROUP, Cluster=$CLUSTER_NAME"
 
       - name: Azure CLI Login
         uses: azure/login@v2
@@ -70,12 +93,6 @@ jobs:
           client-id: ${{ secrets.ARM_CLIENT_ID }}
           tenant-id: ${{ secrets.ARM_TENANT_ID }}
           subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-      
-      - name: Install GitHub Copilot CLI
-        run: |
-          curl -fsSL https://gh.io/copilot-install | bash
-          echo "Installed Copilot CLI version:"
-          copilot --version
 
       - name: Verify Azure Login
         run: |
