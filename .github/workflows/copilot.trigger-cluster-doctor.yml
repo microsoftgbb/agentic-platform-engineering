@@ -13,6 +13,11 @@ env:
   ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
   ARM_USE_OIDC: true
 
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+
 jobs:
   run-cluster-doctor:
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'cluster-doctor'
