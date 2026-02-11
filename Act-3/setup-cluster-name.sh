@@ -10,9 +10,9 @@ RESOURCE_GROUP=$(kubectl get nodes -o jsonpath='{.items[0].metadata.labels.kuber
 echo "Setting cluster name in ArgoCD notifications: $CLUSTER_NAME"
 echo "Setting resource group in ArgoCD notifications: $RESOURCE_GROUP"
 
-# Update the cluster-name and resource-group in the argocd-notifications-cm ConfigMap
+# Update the context in the argocd-notifications-cm ConfigMap
 kubectl patch configmap argocd-notifications-cm -n argocd \
-  -p "{\"data\":{\"cluster-name\":\"$CLUSTER_NAME\",\"resource-group\":\"$RESOURCE_GROUP\"}}"
+  -p "{\"data\":{\"context\":\"clusterName: $CLUSTER_NAME\\nresourceGroup: $RESOURCE_GROUP\\n\"}}"
 
 # Restart the notifications controller to pick up the change
 kubectl rollout restart deployment argocd-notifications-controller -n argocd
