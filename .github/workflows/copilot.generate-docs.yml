@@ -4,6 +4,10 @@ name: Generate Documentation with Copilot
 
 on:
   workflow_dispatch:
+
+  pull_request:
+    types: [opened, reopened, synchronize]
+  
   push:
     paths-ignore:
       - 'docs/**'
