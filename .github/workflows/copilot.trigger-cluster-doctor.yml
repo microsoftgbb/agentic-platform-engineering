@@ -5,7 +5,7 @@ name: Trigger Cluster Doctor
 on:
   workflow_dispatch:
   issues:
-    types: [labeled]
+    types: [labeled, opened]
 
 env:
   ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
@@ -21,7 +21,10 @@ permissions:
 
 jobs:
   run-cluster-doctor:
-    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'cluster-doctor'
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      github.event.label.name == 'cluster-doctor' ||
+      (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'cluster-doctor'))
     environment: copilot
     runs-on: ubuntu-latest
     permissions:
