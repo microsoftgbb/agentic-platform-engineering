@@ -132,8 +132,17 @@ jobs:
           kubectl port-forward -n aks-mcp svc/aks-mcp 8000:8000 &
           sleep 3  # Wait for port-forward to establish
 
-      
-      
+      - name: Post work started comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment ${{ steps.get-issue.outputs.issue_number }} \
+            --body "🤖 **Cluster Doctor is on the case!**
+
+          Work has begun on this issue. A GitHub Action has been spun up to analyze and diagnose the cluster.
+
+          🔗 [View the running GitHub Action](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
       - name: Analyze and delegate to Copilot
         env:
           GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_TOKEN }}        # Workflow token for MCP GitHub operations (issues)
