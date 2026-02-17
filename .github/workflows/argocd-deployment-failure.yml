@@ -155,4 +155,16 @@ jobs:
               });
               
               console.log(`Created issue #${issue.data.number}`);
+              
+              // Trigger cluster-doctor workflow
+              await github.rest.repos.createDispatchEvent({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                event_type: 'cluster-doctor-trigger',
+                client_payload: {
+                  issue_number: issue.data.number
+                }
+              });
+              
+              console.log(`Triggered cluster-doctor workflow for issue #${issue.data.number}`);
             }
