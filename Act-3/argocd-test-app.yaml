@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: 2-broken-apps
+  name: agentic-platform-engineering-demo
   namespace: argocd
   annotations:
     # Enable notifications on sync failures
