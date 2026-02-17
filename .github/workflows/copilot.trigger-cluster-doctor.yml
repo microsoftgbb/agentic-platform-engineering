@@ -4,8 +4,10 @@ name: Trigger Cluster Doctor
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types: [cluster-doctor-trigger]
   issues:
-    types: [labeled]
+    types: [labeled, opened]
 
 env:
   ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
@@ -21,7 +23,11 @@ permissions:
 
 jobs:
   run-cluster-doctor:
-    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'cluster-doctor'
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      github.event_name == 'repository_dispatch' ||
+      github.event.label.name == 'cluster-doctor' ||
+      (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'cluster-doctor'))
     environment: copilot
     runs-on: ubuntu-latest
     permissions:
@@ -31,6 +37,15 @@ jobs:
       pull-requests: write  # Required to create PRs if needed
     
     steps:
+      - name: Determine issue number
+        id: get-issue
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "issue_number=${{ github.event.client_payload.issue_number }}" >> $GITHUB_OUTPUT
+          else
+            echo "issue_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+          fi
+          
       - name: Checkout code
         uses: actions/checkout@v5
         with:
@@ -48,10 +63,10 @@ jobs:
           GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
         run: |
-          echo "Parsing cluster info from issue #${{ github.event.issue.number }}..."
+          echo "Parsing cluster info from issue #${{ steps.get-issue.outputs.issue_number }}..."
           
           # Set variables for prompt substitution
-          export ISSUE_NUMBER="${{ github.event.issue.number }}"
+          export ISSUE_NUMBER="${{ steps.get-issue.outputs.issue_number }}"
           export REPOSITORY="${{ github.repository }}"
           
           # Load and substitute variables in prompt
@@ -124,10 +139,10 @@ jobs:
           GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_TOKEN }}        # Workflow token for MCP GitHub operations (issues)
           GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}       # Personal PAT for Copilot API authentication
         run: |
-          echo "Analyzing issue #${{ github.event.issue.number }}"
+          echo "Analyzing issue #${{ steps.get-issue.outputs.issue_number }}"
           echo "Loading documentation criteria from prompt..."
           
-          export PROMPT="Use the GitHub MCP Server to help analyze GitHub Issue #${{ github.event.issue.number }} in the repository ${{ github.repository }}. Any changes or fixes should be documented back in the GitHub Issue as a comment in the thread, and use GitHub MCP server to create a PR should any material changes to the repo be made as part of the fix and noted as part of the issue comment response, also via GitHub MCP server.  Leverage the AKS MCP server to get additional information to verify the issue and details about the AKS cluster."
+          export PROMPT="Use the GitHub MCP Server to help analyze GitHub Issue #${{ steps.get-issue.outputs.issue_number }} in the repository ${{ github.repository }}. Any changes or fixes should be documented back in the GitHub Issue as a comment in the thread, and use GitHub MCP server to create a PR should any material changes to the repo be made as part of the fix and noted as part of the issue comment response, also via GitHub MCP server.  Leverage the AKS MCP server to get additional information to verify the issue and details about the AKS cluster."
           
           echo "Delegating to GitHub Copilot..."
           echo "- Copilot will use MCP to examine the issue"
