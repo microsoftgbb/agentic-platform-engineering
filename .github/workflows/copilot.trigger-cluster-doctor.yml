@@ -99,6 +99,11 @@ jobs:
           echo "Verifying Azure authentication..."
           az account show
       
+      - name: Install Kube Login
+        run: |
+          echo "Install Kubectl and Kubelogin needed to exchanage az creds for k8s config"
+          az aks install-cli
+      
       - name: Get AKS Credentials
         run: |
           echo "Fetching kubeconfig for cluster ${{ steps.cluster-info.outputs.CLUSTER_NAME }}..."
