@@ -151,7 +151,7 @@ jobs:
                 repo: context.repo.repo,
                 title: issueTitle,
                 body: issueBody,
-                labels: ['argocd-deployment-failure', 'automated', 'bug']
+                labels: ['argocd-deployment-failure', 'automated', 'bug', 'cluster-doctor']
               });
               
               console.log(`Created issue #${issue.data.number}`);
