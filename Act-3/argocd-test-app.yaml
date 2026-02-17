@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     # Using a public example repo that will fail
-    repoURL: https://github.com/DevExpGbb/agentic-platform-engineering.git
+    repoURL: https://github.com/microsoftgbb/agentic-platform-engineering.git
     targetRevision: main
     path: Act-3/argocd/apps
   destination:
