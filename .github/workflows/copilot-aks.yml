@@ -10,8 +10,6 @@ on:
         description: 'AKS Cluster Name'
         required: true
         default: 'aks-eastus2'
-  issues:
-    types: [labeled]
 
 env:
   ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
