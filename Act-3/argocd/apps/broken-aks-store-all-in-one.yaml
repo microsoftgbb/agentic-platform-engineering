@@ -181,7 +181,6 @@ metadata:
   name: order-service
 spec:
   replicas: 1
-  progressDeadlineSeconds: 10
   selector:
     matchLabels:
       app: order-service
@@ -194,7 +193,7 @@ spec:
         "kubernetes.io/os": linux
       containers:
         - name: order-service
-          image: ghcr.io/azure-samples/aks-store-demo/ordr-service:2.1.0
+          image: ghcr.io/azure-samples/aks-store-demo/order-service:2.1.0
           ports:
             - containerPort: 3000
           envFrom:
