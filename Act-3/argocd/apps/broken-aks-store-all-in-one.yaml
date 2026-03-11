@@ -181,6 +181,7 @@ metadata:
   name: order-service
 spec:
   replicas: 1
+  progressDeadlineSeconds: 10
   selector:
     matchLabels:
       app: order-service
