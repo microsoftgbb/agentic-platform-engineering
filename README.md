@@ -115,6 +115,9 @@ _(Coming soon)_
 
 ## Resources
 - [Tech Connect Feb 2026 Slide Deck](https://microsoft-my.sharepoint.com/:p:/p/dicasati/IQB90yD2k9IZTpqIYAnsIVzZAfA3kgaCG4xPrwGMmbFJflY?e=6NiPsY&wdOrigin=TEAMS-MAGLEV.null_ns.rwc&wdExp=TEAMS-TREATMENT&wdhostclicktime=1769453007818&web=1)
+- [Cluster Doctor: Agentic Platform Engineering - Part 1](https://youtu.be/M_YX74ATz0I?si=w6_iUYsC27a9svUh)
+- [M365 Copilot with Workiq, GitHub Copilot Spec-Kit Demo](https://www.youtube.com/watch?v=BC34-jx3X_w)
+- 
 
 ## Contributing
 
