@@ -10,10 +10,10 @@ metadata:
 spec:
   project: default
   source:
-    # Using a public example repo that will fail
+    # Deploy the healthy workshop manifest; keep the broken manifest for exercises.
     repoURL: https://github.com/microsoftgbb/agentic-platform-engineering.git
     targetRevision: main
-    path: Act-3/argocd/apps
+    path: Act-3/argocd/deploy
   destination:
     server: https://kubernetes.default.svc
     namespace: default
