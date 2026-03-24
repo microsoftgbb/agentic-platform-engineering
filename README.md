@@ -110,14 +110,17 @@ This repository is organized to support different presentation needs and learnin
 - **Demos** - Hands-on examples demonstrating agentic platform engineering in action
 
 ## Getting Started
-
 _(Coming soon)_
+
+### TODO
+- Terraform or Aspire Scripts/Modules to deploy demo environment via IaC
 
 ## Resources
 - [Tech Connect Feb 2026 Slide Deck](https://microsoft-my.sharepoint.com/:p:/p/dicasati/IQB90yD2k9IZTpqIYAnsIVzZAfA3kgaCG4xPrwGMmbFJflY?e=6NiPsY&wdOrigin=TEAMS-MAGLEV.null_ns.rwc&wdExp=TEAMS-TREATMENT&wdhostclicktime=1769453007818&web=1)
 - [Cluster Doctor: Agentic Platform Engineering - Part 1](https://youtu.be/M_YX74ATz0I?si=w6_iUYsC27a9svUh)
+- [Cluster Doctor Configuration: Agentic Platform Engineering - Part 2](https://youtu.be/sYM_X6tOgDw)
 - [M365 Copilot with Workiq, GitHub Copilot Spec-Kit Demo](https://www.youtube.com/watch?v=BC34-jx3X_w)
-- 
+- [Blog Post](https://devblogs.microsoft.com/all-things-azure/agentic-platform-engineering-with-github-copilot/)
 
 ## Contributing
 
