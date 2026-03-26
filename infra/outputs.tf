@@ -27,3 +27,13 @@ output "oidc_issuer_url" {
   description = "OIDC issuer URL of the AKS cluster (for federated credential configuration)"
   value       = try(azurerm_kubernetes_cluster.main.oidc_issuer_url, "")
 }
+
+output "vnet_id" {
+  description = "ID of the Virtual Network"
+  value       = azurerm_virtual_network.main.id
+}
+
+output "aks_subnet_id" {
+  description = "ID of the AKS subnet"
+  value       = azurerm_subnet.aks.id
+}
