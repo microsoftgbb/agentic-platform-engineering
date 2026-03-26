@@ -15,7 +15,12 @@ output "get_credentials_command" {
 
 output "acr_login_server" {
   description = "ACR login server hostname"
-  value       = try(azurerm_container_registry.main.login_server, "")
+  value       = azurerm_container_registry.main.login_server
+}
+
+output "acr_id" {
+  description = "Resource ID of the Azure Container Registry (used for AKS role assignment)"
+  value       = azurerm_container_registry.main.id
 }
 
 output "uami_client_id" {
