@@ -1,0 +1,10 @@
+# Rename to backend.tf and fill in values to use Azure Storage remote state.
+# Run: terraform init -reconfigure
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "rg-terraform-state"
+    storage_account_name = "<your-storage-account>"
+    container_name       = "tfstate"
+    key                  = "agentic-platform-engineering.tfstate"
+  }
+}

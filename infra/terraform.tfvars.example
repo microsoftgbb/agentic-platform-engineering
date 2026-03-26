@@ -1,0 +1,8 @@
+location             = "eastus2"
+resource_group_name  = "rg-agentic-demo"
+cluster_name         = "aks-eastus2"
+kubernetes_version   = "1.30"
+node_vm_size         = "Standard_D4s_v3"
+node_count           = 3
+github_org           = "MicrosoftGbb"
+github_repo          = "agentic-platform-engineering"
