@@ -63,3 +63,9 @@ output "kube_config" {
   value       = azurerm_kubernetes_cluster.main.kube_config_raw
   sensitive   = true
 }
+
+output "argocd_admin_password" {
+  description = "ArgoCD admin password — use with username 'admin'"
+  value       = random_password.argocd_admin.result
+  sensitive   = true
+}
