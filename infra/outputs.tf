@@ -69,3 +69,8 @@ output "argocd_admin_password" {
   value       = random_password.argocd_admin.result
   sensitive   = true
 }
+
+output "aks_mcp_port_forward_command" {
+  description = "Command to port-forward AKS MCP server locally"
+  value       = "kubectl port-forward -n aks-mcp svc/aks-mcp 8000:8000"
+}
