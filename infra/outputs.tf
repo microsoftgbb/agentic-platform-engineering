@@ -24,8 +24,23 @@ output "acr_id" {
 }
 
 output "uami_client_id" {
-  description = "Client ID of the User-Assigned Managed Identity (for workload identity annotations)"
-  value       = try(azurerm_user_assigned_identity.main.client_id, "")
+  description = "Client ID of the User-Assigned Managed Identity (ARM_CLIENT_ID for GitHub Actions)"
+  value       = azurerm_user_assigned_identity.workload.client_id
+}
+
+output "uami_principal_id" {
+  description = "Principal ID of the User-Assigned Managed Identity"
+  value       = azurerm_user_assigned_identity.workload.principal_id
+}
+
+output "github_actions_env_vars" {
+  description = "Environment variables / secrets to configure in GitHub Actions"
+  value = {
+    ARM_CLIENT_ID       = azurerm_user_assigned_identity.workload.client_id
+    ARM_SUBSCRIPTION_ID = data.azurerm_client_config.current.subscription_id
+    ARM_TENANT_ID       = data.azurerm_client_config.current.tenant_id
+    ARM_USE_OIDC        = "true"
+  }
 }
 
 output "oidc_issuer_url" {
