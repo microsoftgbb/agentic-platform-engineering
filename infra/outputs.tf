@@ -5,12 +5,12 @@ output "resource_group_name" {
 
 output "cluster_name" {
   description = "Name of the AKS cluster"
-  value       = var.cluster_name
+  value       = azurerm_kubernetes_cluster.main.name
 }
 
 output "get_credentials_command" {
   description = "Command to fetch AKS kubeconfig"
-  value       = "az aks get-credentials --resource-group ${azurerm_resource_group.main.name} --name ${var.cluster_name}"
+  value       = "az aks get-credentials --resource-group ${azurerm_resource_group.main.name} --name ${azurerm_kubernetes_cluster.main.name}"
 }
 
 output "acr_login_server" {
@@ -30,7 +30,7 @@ output "uami_client_id" {
 
 output "oidc_issuer_url" {
   description = "OIDC issuer URL of the AKS cluster (for federated credential configuration)"
-  value       = try(azurerm_kubernetes_cluster.main.oidc_issuer_url, "")
+  value       = azurerm_kubernetes_cluster.main.oidc_issuer_url
 }
 
 output "vnet_id" {
@@ -41,4 +41,10 @@ output "vnet_id" {
 output "aks_subnet_id" {
   description = "ID of the AKS subnet"
   value       = azurerm_subnet.aks.id
+}
+
+output "kube_config" {
+  description = "Raw kubeconfig for the AKS cluster"
+  value       = azurerm_kubernetes_cluster.main.kube_config_raw
+  sensitive   = true
 }
