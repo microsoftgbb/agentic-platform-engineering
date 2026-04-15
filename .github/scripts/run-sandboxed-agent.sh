@@ -4,14 +4,14 @@ set -euo pipefail
 # ──────────────────────────────────────────────────────────
 # Run the Copilot CLI agent inside a network-isolated container.
 #
-# The agent container sits on an internal Docker network with
-# no direct internet access. All HTTP/HTTPS traffic is routed
-# through a Squid proxy that enforces a domain allowlist.
+# All HTTP/HTTPS traffic is routed through a Squid proxy that
+# enforces a domain allowlist. The allowlist is passed as a
+# newline-delimited string via --allowed-domains.
 #
 # Usage:
 #   .github/scripts/run-sandboxed-agent.sh \
 #     --kubeconfig "$HOME/.kube/config" \
-#     --cluster-api-server "mycluster-dns-abc123.hcp.eastus.azmk8s.io" \
+#     --allowed-domains "$ALLOWED_DOMAINS" \
 #     --prompt-file /tmp/prompt.md \
 #     --output-file agent-output.json \
 #     --mcp-config .copilot/mcp-config.json \
@@ -23,7 +23,7 @@ set -euo pipefail
 while [[ $# -gt 0 ]]; do
   case $1 in
     --kubeconfig) KUBECONFIG_PATH="$2"; shift 2 ;;
-    --cluster-api-server) CLUSTER_API="$2"; shift 2 ;;
+    --allowed-domains) ALLOWED_DOMAINS="$2"; shift 2 ;;
     --prompt-file) PROMPT_FILE="$2"; shift 2 ;;
     --output-file) OUTPUT_FILE="$2"; shift 2 ;;
     --mcp-config) MCP_CONFIG="$2"; shift 2 ;;
@@ -55,30 +55,29 @@ docker build -t cluster-doctor-agent:local \
   --quiet
 
 # ── Create isolated Docker network ──
-# --internal: no external connectivity from this network
 echo "Creating isolated network: $NETWORK_NAME"
 docker network create --internal "$NETWORK_NAME"
 
-# ── Generate dynamic domain allowlist ──
-# Add the specific cluster API server FQDN
-DYNAMIC_DOMAINS=$(mktemp)
-echo "$CLUSTER_API" > "$DYNAMIC_DOMAINS"
-echo "Dynamic allowlist: $CLUSTER_API"
+# ── Write domain allowlist to temp file ──
+DOMAINS_FILE=$(mktemp)
+echo "$ALLOWED_DOMAINS" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' > "$DOMAINS_FILE"
+
+echo "Domain allowlist:"
+cat "$DOMAINS_FILE" | sed 's/^/  /'
+echo ""
 
 # ── Start Squid proxy ──
-# Proxy is on both the isolated network (for agent) and bridge (for internet)
 echo "Starting Squid proxy..."
 docker run -d \
   --name "$PROXY_CONTAINER" \
   --network "$NETWORK_NAME" \
   -v "$REPO_ROOT/.github/containers/proxy/squid.conf:/etc/squid/squid.conf:ro" \
-  -v "$DYNAMIC_DOMAINS:/etc/squid/dynamic-domains.txt:ro" \
+  -v "$DOMAINS_FILE:/etc/squid/allowed-domains.txt:ro" \
   ubuntu/squid:latest
 
-# Connect proxy to default bridge for internet access
+# Proxy needs bridge access to reach the internet on behalf of the agent
 docker network connect bridge "$PROXY_CONTAINER"
 
-# Wait for Squid to start
 sleep 3
 echo "Proxy ready"
 
@@ -100,17 +99,14 @@ docker run --rm \
   -w /workspace \
   cluster-doctor-agent:local \
   -c '
-    # Start port-forward to AKS MCP server (goes through proxy to K8s API)
     kubectl port-forward -n aks-mcp svc/aks-mcp 8000:8000 &
     sleep 3
 
-    # Run the agent
     copilot -p "$(cat /tmp/prompt.md)" \
       --agent "cluster-doctor" \
       --additional-mcp-config @"'"$MCP_CONFIG"'" \
       --allow-all-tools
 
-    # Copy output to mounted volume
     if [ -f agent-output.json ]; then
       cp agent-output.json /output/'"$(basename "$OUTPUT_FILE")"'
     fi
@@ -130,7 +126,7 @@ else
   exit 1
 fi
 
-# Print proxy access log for auditability
+# Full audit trail
 echo ""
 echo "=== Proxy access log (all agent network activity) ==="
 docker logs "$PROXY_CONTAINER" 2>&1 | grep -v "cache.log" || true

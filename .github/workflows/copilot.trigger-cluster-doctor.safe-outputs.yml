@@ -24,6 +24,22 @@ on:
 permissions:
   contents: read
 
+# ──────────────────────────────────────────────────────────
+# Network firewall: domain allowlist for the agent container.
+# The agent can ONLY reach these domains. Everything else is
+# blocked by the Squid proxy at the network level.
+#
+# Edit this list to add/remove allowed destinations.
+# The cluster API server FQDN is added dynamically at runtime.
+# ──────────────────────────────────────────────────────────
+env:
+  AGENT_ALLOWED_DOMAINS: |
+    api.githubcopilot.com
+    api.github.com
+    .azmk8s.io
+    login.microsoftonline.com
+    management.azure.com
+
 jobs:
   # ──────────────────────────────────────────────────────────
   # Job 1: Diagnose
@@ -193,9 +209,13 @@ jobs:
           COPILOT_CLI_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
           GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Append the cluster-specific API server FQDN to the allowlist
+          DOMAINS="${AGENT_ALLOWED_DOMAINS}
+          ${{ steps.aks.outputs.api_server }}"
+
           .github/scripts/run-sandboxed-agent.sh \
             --kubeconfig "$HOME/.kube/config" \
-            --cluster-api-server "${{ steps.aks.outputs.api_server }}" \
+            --allowed-domains "$DOMAINS" \
             --prompt-file /tmp/diagnosis-prompt.md \
             --output-file "$GITHUB_WORKSPACE/agent-output.json" \
             --mcp-config ".copilot/mcp-config.json" \
