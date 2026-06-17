@@ -1,0 +1,273 @@
+name: "Cluster Doctor (Safe Outputs)"
+
+# Full defense-in-depth pipeline using two composable actions:
+#   - agent-sandbox-action: container isolation + network firewall
+#   - safe-outputs-action: constraint validation + secret sanitization + gated writes
+#
+# Three jobs, three permission sets, five security layers:
+#   1. Container isolation (agent in Docker)
+#   2. Network firewall (Squid proxy, domain allowlist)
+#   3. Scoped credentials (read-only K8s + Azure)
+#   4. Output validation (constraints, sanitization, threat detection)
+#   5. Permission separation (diagnose / scan / apply)
+#
+# See:
+#   https://github.com/microsoftgbb/agent-sandbox-action
+#   https://github.com/microsoftgbb/safe-outputs-action
+
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [cluster-doctor-trigger]
+  issues:
+    types: [labeled, opened]
+
+permissions:
+  contents: read
+
+# Domain allowlist for the agent sandbox.
+# Edit this list to control which domains the agent can reach.
+# The cluster API server FQDN is appended dynamically at runtime.
+env:
+  AGENT_ALLOWED_DOMAINS: |
+    api.githubcopilot.com
+    api.github.com
+    .azmk8s.io
+    login.microsoftonline.com
+    management.azure.com
+
+jobs:
+  # ──────────────────────────────────────────────────────────
+  # Job 1: Diagnose
+  #
+  # Agent runs inside a network-isolated Docker container.
+  # All traffic routes through a Squid proxy enforcing the
+  # domain allowlist above. Proxy access log provides a full
+  # audit trail.
+  #
+  # The agent can freely explore the cluster via read-only
+  # MCP access but cannot reach unauthorized domains or
+  # write to GitHub.
+  # ──────────────────────────────────────────────────────────
+  diagnose:
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      github.event_name == 'repository_dispatch' ||
+      github.event.label.name == 'cluster-doctor' ||
+      (github.event.action == 'opened' && contains(github.event.issue.labels.*.name, 'cluster-doctor'))
+    environment: copilot
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write    # Azure OIDC (scoped to read-only roles)
+      contents: read
+      issues: read
+    outputs:
+      issue_number: ${{ steps.get-issue.outputs.issue_number }}
+
+    steps:
+      - name: Determine issue number
+        id: get-issue
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "issue_number=${{ github.event.client_payload.issue_number }}" >> $GITHUB_OUTPUT
+          else
+            echo "issue_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install GitHub Copilot CLI
+        run: |
+          curl -fsSL https://gh.io/copilot-install | bash
+
+      - name: Parse cluster info from issue body
+        id: cluster-info
+        env:
+          GITHUB_MCP_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+        run: |
+          export ISSUE_NUMBER="${{ steps.get-issue.outputs.issue_number }}"
+          export REPOSITORY="${{ github.repository }}"
+          PROMPT=$(envsubst < .github/prompts/parse-cluster-info.md)
+
+          COPILOT_OUTPUT=$(copilot -p "$PROMPT" \
+            --agent "cluster-doctor" \
+            --additional-mcp-config @'.copilot/mcp-config.json' \
+            --allow-all-tools 2>&1)
+
+          RESOURCE_GROUP=$(echo "$COPILOT_OUTPUT" | grep -oP 'RESOURCE_GROUP=\K[^\s]+' | head -1)
+          CLUSTER_NAME=$(echo "$COPILOT_OUTPUT" | grep -oP 'CLUSTER_NAME=\K[^\s]+' | head -1)
+
+          if [ -z "$RESOURCE_GROUP" ] || [ -z "$CLUSTER_NAME" ]; then
+            echo "ERROR: Could not parse cluster info"
+            echo "$COPILOT_OUTPUT"
+            exit 1
+          fi
+
+          echo "RESOURCE_GROUP=$RESOURCE_GROUP" >> $GITHUB_OUTPUT
+          echo "CLUSTER_NAME=$CLUSTER_NAME" >> $GITHUB_OUTPUT
+
+      - name: Azure CLI Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.ARM_CLIENT_ID }}
+          tenant-id: ${{ secrets.ARM_TENANT_ID }}
+          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+
+      - name: Get AKS credentials
+        id: aks
+        run: |
+          az aks install-cli
+          az aks get-credentials \
+            --resource-group ${{ steps.cluster-info.outputs.RESOURCE_GROUP }} \
+            --name ${{ steps.cluster-info.outputs.CLUSTER_NAME }} \
+            --overwrite-existing
+
+          API_SERVER=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}' | sed 's|https://||' | cut -d: -f1)
+          echo "api_server=$API_SERVER" >> $GITHUB_OUTPUT
+
+      - name: Post work started comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment ${{ steps.get-issue.outputs.issue_number }} \
+            --body "🤖 **Cluster Doctor is on the case!**
+
+          Connected to cluster. AI diagnosis starting in a network-isolated sandbox.
+
+          🔗 [View workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+
+      # ── Sandboxed agent ──
+      - name: Run agent in sandbox
+        uses: microsoftgbb/agent-sandbox-action@v1
+        with:
+          allowed-domains: |
+            ${{ env.AGENT_ALLOWED_DOMAINS }}
+            ${{ steps.aks.outputs.api_server }}
+          env-vars: |
+            GITHUB_TOKEN=${{ secrets.COPILOT_CLI_TOKEN }}
+            GITHUB_MCP_TOKEN=${{ secrets.GITHUB_TOKEN }}
+            KUBECONFIG=/home/agent/.kube/config
+          extra-mounts: |
+            ${{ env.HOME }}/.kube/config:/home/agent/.kube/config:ro
+          command: |
+            kubectl port-forward -n aks-mcp svc/aks-mcp 8000:8000 &
+            sleep 3
+
+            ISSUE_NUMBER="${{ steps.get-issue.outputs.issue_number }}"
+            CLUSTER="${{ steps.cluster-info.outputs.CLUSTER_NAME }}"
+            RG="${{ steps.cluster-info.outputs.RESOURCE_GROUP }}"
+
+            copilot -p "You are the Cluster Doctor diagnosing AKS cluster '${CLUSTER}' in resource group '${RG}'.
+
+            Use the AKS MCP server to explore the cluster (read-only).
+            Use the GitHub MCP server to read issue #${ISSUE_NUMBER} in ${{ github.repository }}.
+
+            INVESTIGATE FREELY:
+            - Start broad (cluster health, node status, pod states)
+            - Follow threads (OOMKilled -> resource limits -> HPA -> node capacity)
+            - Check pod logs for crash details
+            - Trace dependency chains (service -> deployment -> pods -> events)
+
+            Produce findings as agent-output.json:
+            {
+              \"version\": \"1\",
+              \"actions\": [
+                {
+                  \"type\": \"issue_comment\",
+                  \"issue_number\": ${ISSUE_NUMBER},
+                  \"body\": \"## Cluster Doctor Report\n\n<investigation path, findings, root cause, remediation>\"
+                }
+              ]
+            }
+
+            For config fixes, add a create_pull_request action with files map.
+            Use [cluster-doctor] prefix on all titles.
+            Do NOT include secrets, tokens, or internal IPs." \
+              --agent "cluster-doctor" \
+              --additional-mcp-config @'.copilot/mcp-config.json' \
+              --allow-all-tools
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-output
+          path: agent-output.json
+          retention-days: 1
+
+  # ──────────────────────────────────────────────────────────
+  # Job 2: Scan
+  #
+  # No credentials. No cluster access. No write tokens.
+  # Validates constraints, sanitizes secrets, runs AI threat
+  # detection. Circuit breaker between diagnosis and action.
+  # ──────────────────────────────────────────────────────────
+  scan:
+    needs: diagnose
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: agent-output
+
+      - name: Install Copilot CLI (for threat detection)
+        run: |
+          curl -fsSL https://gh.io/copilot-install | bash
+
+      - name: Validate, sanitize, and scan
+        uses: microsoftgbb/safe-outputs-action@v1
+        with:
+          artifact-path: agent-output.json
+          max-issues: 0
+          max-comments: 2
+          max-pull-requests: 1
+          title-prefix: "[cluster-doctor] "
+          allowed-labels: "cluster-doctor,bug,investigation,remediation"
+          threat-detection: true
+          dry-run: true
+          custom-secret-patterns: |
+            10\.0\.\d+\.\d+
+            aks-[a-z0-9]{8,}
+            DefaultEndpointsProtocol
+        env:
+          GITHUB_TOKEN: ${{ secrets.COPILOT_CLI_TOKEN }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: scanned-output
+          path: agent-output.json
+          retention-days: 1
+          overwrite: true
+
+  # ──────────────────────────────────────────────────────────
+  # Job 3: Apply
+  #
+  # GitHub write token only. No agent. No cluster creds.
+  # Mechanically applies validated, sanitized output.
+  # ──────────────────────────────────────────────────────────
+  apply:
+    needs: [diagnose, scan]
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: write
+      pull-requests: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: scanned-output
+
+      - name: Apply safe outputs
+        uses: microsoftgbb/safe-outputs-action@v1
+        with:
+          artifact-path: agent-output.json
+          max-issues: 0
+          max-comments: 2
+          max-pull-requests: 1
+          title-prefix: "[cluster-doctor] "
+          allowed-labels: "cluster-doctor,bug,investigation,remediation"

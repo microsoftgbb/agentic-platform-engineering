@@ -109,6 +109,15 @@ This repository is organized to support different presentation needs and learnin
 - **Presentations** - Slide decks tailored for different audiences (executives, practitioners, developers)
 - **Demos** - Hands-on examples demonstrating agentic platform engineering in action
 
+### Workshop Acts (Crawl, Walk, Run)
+
+| Act | Title | Focus |
+|-----|-------|-------|
+| [Act 1](./Act-1/) | The Platform Is Growing Faster Than the Team | Knowledge capture with AI agent personas and prompts |
+| [Act 2](./Act-2/) | Standards Exist, but They're Not Enforced | Embedding agents into CI/CD workflows |
+| [Act 3](./Act-3/) | Kubernetes Operations Don't Scale Linearly | Event-driven agent workflows for incident response |
+| [Act 4](./Act-4/) | Agents Shouldn't Have the Keys to the Kingdom | Defense-in-depth security for agentic workflows |
+
 ## Getting Started
 _(Coming soon)_
 
